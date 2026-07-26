@@ -1,0 +1,11 @@
+{
+  "name": "mafia-php-game",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "php -S 0.0.0.0:3000",
+    "build": "echo 'Built PHP app'",
+    "start": "php -S 0.0.0.0:3000"
+  }
+}

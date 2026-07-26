@@ -57,25 +57,31 @@ if ($player_id) {
                     </div>
                 </div>
 
-                <div class="text-xs text-slate-400">Current Phase: <strong id="phase-display" class="uppercase text-white"><?php echo $db['phase']; ?></strong></div>
+                <div class="text-xs text-slate-400">Current Phase: <strong id="phase-display" class="uppercase text-white"><?php echo htmlspecialchars($db['phase']); ?></strong></div>
             </div>
 
             <script>
-                const myPlayerId = "<?php echo $my_player['id']; ?>";
+                const myPlayerId = "<?php echo $my_player ? $my_player['id'] : ''; ?>";
+                const initialRolesShared = <?php echo ($db['roles_shared'] ?? false) ? 'true' : 'false'; ?>;
+                const initialMyRole = "<?php echo htmlspecialchars($my_player['role'] ?? 'Pending'); ?>";
                 let lastResetToken = "<?php echo $db['reset_token'] ?? ''; ?>";
+                let pollTimer = null;
                 let countdownInterval = null;
 
-                // Automatically clear old local storage states if a server reset token changes
+                // Sync local storage reset token
                 if (localStorage.getItem('mafia_reset_token') !== lastResetToken) {
                     localStorage.removeItem('mafia_role_revealed_' + myPlayerId);
                     localStorage.setItem('mafia_reset_token', lastResetToken);
                 }
 
                 function renderHiddenState() {
-                    document.getElementById('role-container').innerHTML = `
-                        <span class="text-xs text-slate-500 uppercase block mb-2">Role Hidden</span>
-                        <div class="text-sm font-bold text-slate-600">Your role is hidden to prevent peeking.</div>
-                    `;
+                    const container = document.getElementById('role-container');
+                    if (container) {
+                        container.innerHTML = `
+                            <span class="text-xs text-slate-500 uppercase block mb-2">Role Hidden</span>
+                            <div class="text-sm font-bold text-slate-600">Your role is hidden to prevent peeking.</div>
+                        `;
+                    }
                 }
 
                 function startLocalCountdown(roleName) {
@@ -92,11 +98,13 @@ if ($player_id) {
 
                     countdownInterval = setInterval(() => {
                         if (timeLeft > 0) {
-                            container.innerHTML = `
-                                <span class="text-xs text-slate-400 uppercase block mb-2">Your Secret Role</span>
-                                <div class="text-3xl font-black text-rose-400 uppercase">${roleName}</div>
-                                <div class="text-xs text-amber-400 mt-4 font-bold">Hiding in ${timeLeft}s...</div>
-                            `;
+                            if (container) {
+                                container.innerHTML = `
+                                    <span class="text-xs text-slate-400 uppercase block mb-2">Your Secret Role</span>
+                                    <div class="text-3xl font-black text-rose-400 uppercase">${roleName}</div>
+                                    <div class="text-xs text-amber-400 mt-4 font-bold">Hiding in ${timeLeft}s...</div>
+                                `;
+                            }
                             timeLeft--;
                         } else {
                             clearInterval(countdownInterval);
@@ -106,43 +114,59 @@ if ($player_id) {
                     }, 1000);
                 }
 
+                function stopPolling() {
+                    if (pollTimer) {
+                        clearInterval(pollTimer);
+                        pollTimer = null;
+                    }
+                }
+
                 function pollPlayer() {
                     fetch('actions.php?ajax=1')
                         .then(r => r.json())
                         .then(dbData => {
-                            // Check if a host reset happened globally
+                            // Check if host reset the game session
                             if (dbData.reset_token && dbData.reset_token !== lastResetToken) {
                                 lastResetToken = dbData.reset_token;
                                 localStorage.setItem('mafia_reset_token', lastResetToken);
                                 localStorage.removeItem('mafia_role_revealed_' + myPlayerId);
+                                stopPolling();
                                 window.location.reload();
                                 return;
                             }
 
-                            document.getElementById('phase-display').innerText = dbData.phase.toUpperCase() + (dbData.phase !== 'setup' ? ' ' + dbData.day : '');
-
-                            const currentPlayer = dbData.players.find(p => p.id === myPlayerId);
-
-                            if (currentPlayer) {
-                                if (dbData.roles_shared && currentPlayer.role && currentPlayer.role !== 'Pending') {
-                                    startLocalCountdown(currentPlayer.role);
-                                } else if (!dbData.roles_shared) {
-                                    localStorage.removeItem('mafia_role_revealed_' + myPlayerId);
-                                    window.isCountingDown = false;
-                                    clearInterval(countdownInterval);
-                                    document.getElementById('role-container').innerHTML = `
-                                        <div class="text-sm font-bold text-amber-400 animate-pulse flex flex-col items-center gap-2"><span>⏳</span>Waiting for host to share roles...</div>
-                                    `;
-                                }
+                            const phaseDisplay = document.getElementById('phase-display');
+                            if (phaseDisplay) {
+                                phaseDisplay.innerText = dbData.phase.toUpperCase() + (dbData.phase !== 'setup' ? ' ' + dbData.day : '');
                             }
+
+                            const currentPlayer = dbData.players ? dbData.players.find(p => p.id === myPlayerId) : null;
+
+                            if (currentPlayer && dbData.roles_shared && currentPlayer.role && currentPlayer.role !== 'Pending') {
+                                // Roles are now shared! Reveal the role and STOP POLLING immediately!
+                                startLocalCountdown(currentPlayer.role);
+                                stopPolling(); // STOP ALL SERVER REQUESTS
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Polling error:", err);
                         });
                 }
 
-                if (localStorage.getItem('mafia_role_revealed_' + myPlayerId) === 'true') {
-                    renderHiddenState();
+                // --- INITIAL LOAD LOGIC ---
+                // Rule: Stop continuous hits.
+                // 1. If roles are already shared on load: show role/hidden state and DO NOT poll!
+                // 2. If registered and waiting: poll until roles are shared, then stop!
+                // 3. If unregistered: DO NOT poll!
+                if (initialRolesShared && initialMyRole && initialMyRole !== 'Pending') {
+                    // Roles are ALREADY shared when page loads.
+                    // Display the role and DO NOT request anything from the server!
+                    startLocalCountdown(initialMyRole);
+                } else if (myPlayerId) {
+                    // User is registered and waiting for host to share roles.
+                    // Poll every 3 seconds until roles are shared, then stop immediately.
+                    pollTimer = setInterval(pollPlayer, 3000);
                 }
-
-                setInterval(pollPlayer, 2000);
             </script>
         <?php endif; ?>
     </div>
