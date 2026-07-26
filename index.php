@@ -540,31 +540,66 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                     <!-- Role Share Form -->
                     <div id="role-action-container">
                         <?php if (!($db['roles_shared'] ?? false)): ?>
-                            <form method="POST" class="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-4">
-                                <input type="hidden" name="action" value="share_roles">
-                                
-                                <div class="flex items-center gap-3">
-                                    <label for="mafia_count" class="text-xs text-slate-300 font-bold"><?php echo __('exact_mafia_count'); ?></label>
-                                    <input type="number" id="mafia_count" name="mafia_count" value="2" min="1" max="15" 
-                                           class="w-16 bg-slate-900 border border-slate-700 text-center text-white text-sm font-bold rounded p-1.5 focus:outline-none focus:border-rose-500">
-                                </div>
+                            <!-- Share Roles Button Trigger -->
+                            <button type="button" onclick="document.getElementById('roles-config-modal').classList.remove('hidden')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-lg font-bold text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-2">
+                                <span>📦</span> <?php echo __('distribute_roles_start'); ?>
+                            </button>
 
-                                <div class="grid grid-cols-2 gap-2 text-xs text-slate-300">
-                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Mafia Doctor" checked> Mafia Doctor</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Deceiver" checked> Deceiver</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Police" checked> Police</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Town Doctor" checked> Town Doctor</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Investigator" checked> Investigator</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Grave Keeper" checked> Grave Keeper</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Judge" checked> Judge</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Mirhas" checked> Mirhas</label>
-                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Suicidal Bomb" checked> Suicidal Bomb</label>
-                                </div>
+                            <!-- Roles Selection Modal Overlay -->
+                            <div id="roles-config-modal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                                <form method="POST" class="bg-slate-900 border border-slate-800 rounded-xl p-6 w-full max-w-md space-y-5 shadow-2xl relative">
+                                    <input type="hidden" name="action" value="share_roles">
+                                    
+                                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                                        <h3 class="text-sm font-black uppercase text-emerald-400 tracking-wider flex items-center gap-2">
+                                            <span>⚙️</span> <?php echo __('distribute_roles_start'); ?>
+                                        </h3>
+                                        <button type="button" onclick="document.getElementById('roles-config-modal').classList.add('hidden')" class="text-slate-400 hover:text-white text-base transition font-bold">
+                                            ✕
+                                        </button>
+                                    </div>
 
-                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded font-bold text-xs uppercase tracking-wider transition shadow">
-                                    <?php echo __('distribute_roles_start'); ?>
-                                </button>
-                            </form>
+                                    <!-- Mafia Count Selection -->
+                                    <div class="flex items-center justify-between bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                        <label for="mafia_count" class="text-xs text-slate-300 font-bold"><?php echo __('exact_mafia_count'); ?></label>
+                                        <input type="number" id="mafia_count" name="mafia_count" value="2" min="1" max="15" 
+                                               class="w-16 bg-slate-900 border border-slate-700 text-center text-white text-sm font-bold rounded p-1.5 focus:outline-none focus:border-rose-500">
+                                    </div>
+
+                                    <!-- Special Roles Inclusion Checkboxes -->
+                                    <div class="space-y-2">
+                                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">کۆنترۆلا ڕۆلێن یاریێ (تەخسیسکرن):</span>
+                                        <div class="grid grid-cols-2 gap-2 text-xs text-slate-300 bg-slate-950 p-4 rounded-lg border border-slate-800 max-h-48 overflow-y-auto">
+                                            <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Mafia Doctor" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Mafia Doctor'); ?></label>
+                                            <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Deceiver" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Deceiver'); ?></label>
+                                            <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Police" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Police'); ?></label>
+                                            <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Town Doctor" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Town Doctor'); ?></label>
+                                            <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Investigator" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Investigator'); ?></label>
+                                            <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Grave Keeper" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Grave Keeper'); ?></label>
+                                            <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Judge" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Judge'); ?></label>
+                                            <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Mirhas" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Mirhas'); ?></label>
+                                            <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Suicidal Bomb" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Suicidal Bomb'); ?></label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Explanation Note -->
+                                    <div class="text-[11px] text-slate-400 bg-emerald-950/20 border border-emerald-900/60 p-3 rounded-lg leading-relaxed space-y-1">
+                                        <p class="font-bold text-emerald-400">💡 تێبینی / Note:</p>
+                                        <p>ژمارا وەلاتی و مافیایێن ئاسایی بێ سنوورە. ئەگەر تە بۆ نموونە ٣ مافیا هەڵبژارتن، ۱ دێ بیتە سەرۆکێ مافیایێ، یەک دێ بیتە دکتورێ مافیایێ (ئەگەر کارا بیت) و یێ دی دێ بیتە مافیایێ ئاسایی. هەمان یاسا بۆ وەلاتیێن ئاسایی ژی یا ب جهە.</p>
+                                        <p class="text-slate-500 text-[10px]">Normal Citizens and normal Mafia are unlimited. They automatically fill any remaining player slots.</p>
+                                    </div>
+
+                                    <!-- Actions -->
+                                    <div class="grid grid-cols-2 gap-3 pt-2">
+                                        <button type="button" onclick="document.getElementById('roles-config-modal').classList.add('hidden')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2.5 rounded-lg uppercase tracking-wider transition">
+                                            <?php echo __('cancel'); ?>
+                                        </button>
+                                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-lg uppercase tracking-wider transition shadow">
+                                            <?php echo __('confirm'); ?>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         <?php else: ?>
                             <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 text-center text-xs text-amber-400 font-bold uppercase tracking-wider">
                                 <?php echo __('roles_distributed_hidden'); ?>
