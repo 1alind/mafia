@@ -80,8 +80,10 @@ return [
 
     // Suicidal Bomb Daytime Controls
     'suicidal_bomb_panel_title' => '💣 Suicidal Bomb Revenge Trigger',
-    'suicidal_bomb_choose_target' => 'Suicidal Bomb was voted out! Select a player to be kicked out in revenge:',
+    'suicidal_bomb_choose_target' => 'Suicidal Bomb was voted out! Select a player to be kicked out in revenge, or choose to leave alone:',
     'suicidal_bomb_explode_btn' => '💣 Trigger Suicidal Bomb Explosion',
+    'suicidal_bomb_leave_alone_btn' => '🕊️ Leave Alone (Do Not Kick Anyone)',
+    'suicidal_bomb_option_none' => '-- None (Leave Alone & Do Not Kick Anyone) --',
 
     // Daybreak Morning Report
     'day_morning_report' => 'Day %d Morning Report (Host Only)',

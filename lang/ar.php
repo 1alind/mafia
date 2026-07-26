@@ -79,8 +79,10 @@ return [
 
     // Suicidal Bomb Daytime Controls
     'suicidal_bomb_panel_title' => '💣 انتقام الانتحاري',
-    'suicidal_bomb_choose_target' => 'تم التصويت على طرد الانتحاري! اختر لاعباً ليُطرد معه فوراً:',
+    'suicidal_bomb_choose_target' => 'تم التصويت على طرد الانتحاري! اختر لاعباً ليُطرد معه فوراً، أو اختر المغادرة بسلام دون طرد أحد:',
     'suicidal_bomb_explode_btn' => '💣 تفعيل تفجير الانتحاري',
+    'suicidal_bomb_leave_alone_btn' => '🕊️ المغادرة بسلام (عدم طرد أي شخص)',
+    'suicidal_bomb_option_none' => '-- لا أحد (المغادرة بسلام وبمفرده) --',
 
     // Daybreak Morning Report
     'day_morning_report' => 'تقرير صباح اليوم %d (للمستضيف فقط)',

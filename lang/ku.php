@@ -80,8 +80,10 @@ return [
 
     // Suicidal Bomb Daytime Controls
     'suicidal_bomb_panel_title' => '💣 تۆڵەسەندنا بۆمبا خۆکوژ',
-    'suicidal_bomb_choose_target' => 'بۆمبا خۆکوژ ب دەنگدانێ هاتە دەرئێخستن! یاریزانەکێ هەڵبژێرە دا دگەل وی بهێتە دەرئێخستن:',
+    'suicidal_bomb_choose_target' => 'بۆمبا خۆکوژ ب دەنگدانێ هاتە دەرئێخستن! یاریزانەکێ هەڵبژێرە دا دگەل وی بهێتە دەرئێخستن، یان هەڵبژێرە کو ب تنێ بڕوات ب بێ دەرئێخستنا کەسەکێ:',
     'suicidal_bomb_explode_btn' => '💣 تەقاندنا بۆمبا خۆکوژ',
+    'suicidal_bomb_leave_alone_btn' => '🕊️ دەركەفتن ب ئاشتیانە (چ کەسان دگەل خۆ نەبە)',
+    'suicidal_bomb_option_none' => '-- چ کەس (دەركەفتن ب ئاشتیانە ب تنێ) --',
 
     // Daybreak Morning Report
     'day_morning_report' => 'ڕاپۆرتا سپێدەهیا ڕۆژا %d (تەنێ بۆ سەرپەرشتی)',

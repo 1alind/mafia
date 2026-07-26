@@ -563,7 +563,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($action === 'suicidal_bomb_explode') {
             $pid = $_POST['target_player_id'] ?? '';
-            if ($pid !== '') {
+            $triggered_by = $db['suicidal_bomb_triggered_by'] ?? 'Suicidal Bomb';
+            if ($pid === 'none') {
+                $db['logs'][] = "🕊️ Suicidal Bomb ({$triggered_by}) decided to leave alone peacefully without taking anyone down.";
+                unset($db['suicidal_bomb_triggered_by']);
+                check_win_conditions($db);
+                save_db($db);
+            } elseif ($pid !== '') {
                 $target_name = null;
                 foreach ($db['players'] as &$p) {
                     if ($p['id'] === $pid && $p['status'] === 'alive') {
@@ -572,7 +578,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         break;
                     }
                 }
-                $triggered_by = $db['suicidal_bomb_triggered_by'] ?? 'Suicidal Bomb';
                 if ($target_name) {
                     $db['logs'][] = "💥 Suicidal Bomb ({$triggered_by}) triggered revenge explosion and eliminated '{$target_name}'!";
                 }

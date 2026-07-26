@@ -485,6 +485,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                             </label>
                             <select name="target_player_id" required class="w-full bg-slate-950 border border-rose-700/80 text-slate-200 text-xs rounded-lg p-2.5 focus:outline-none focus:border-rose-500">
                                 <option value=""><?php echo __('make_selection'); ?></option>
+                                <option value="none" class="text-emerald-400 font-bold"><?php echo __('suicidal_bomb_option_none'); ?></option>
                                 <?php foreach ($db['players'] as $p): ?>
                                     <?php if ($p['status'] === 'alive'): ?>
                                         <option value="<?php echo htmlspecialchars($p['id']); ?>">
@@ -494,9 +495,14 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-2.5 rounded-lg uppercase tracking-wider transition shadow">
-                            <?php echo __('suicidal_bomb_explode_btn'); ?>
-                        </button>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-2.5 rounded-lg uppercase tracking-wider transition shadow">
+                                <?php echo __('suicidal_bomb_explode_btn'); ?>
+                            </button>
+                            <button type="submit" onclick="this.form.target_player_id.value='none';" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs py-2.5 rounded-lg uppercase tracking-wider transition shadow">
+                                <?php echo __('suicidal_bomb_leave_alone_btn'); ?>
+                            </button>
+                        </div>
                     </form>
                 </div>
             <?php endif; ?>
