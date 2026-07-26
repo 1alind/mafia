@@ -121,7 +121,7 @@ return [
     'hiding_in_seconds' => 'دێ هیێتە ڤەشارتن د %d چركاندا...',
     'role_mafia_boss' => 'سەرۆکێ مافیا',
     'role_mafia_doctor' => 'نوژدارێ مافیا',
-    'role_deceiver' => 'فێلباس',
+    'role_deceiver' => 'فێلبازێ مافیا',
     'role_regular_mafia' => 'مافیایا ئاسایی',
     'role_police' => 'پۆلیس',
     'role_town_doctor' => 'نوژدارێ هاولاتی',

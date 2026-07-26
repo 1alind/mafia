@@ -45,14 +45,67 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
 
         <!-- Language Selector Header Bar -->
         <div class="flex flex-col sm:flex-row justify-between items-center bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-lg gap-3">
-            <div class="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-wider">
-                🌐 <?php echo __('language'); ?>:
-                <?php render_language_selector(); ?>
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-wider">
+                    🌐 <?php echo __('language'); ?>:
+                    <?php render_language_selector(); ?>
+                </div>
+                <!-- Sound Mute Button -->
+                <button type="button" id="mute-btn" onclick="toggleMute()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-black transition flex items-center gap-1.5 shadow-sm">
+                    <span id="mute-icon">🔊</span>
+                    <span id="mute-text">Sounds: ON</span>
+                </button>
             </div>
             <div>
                 <a href="roles.php" class="bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/80 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase transition flex items-center gap-1.5 shadow">
                     <?php echo __('view_roles_guide'); ?>
                 </a>
+            </div>
+        </div>
+
+        <!-- DISCUSSION & PHASE TIMER -->
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5">
+                <div class="p-3 bg-indigo-950/60 rounded-xl border border-indigo-900/60 text-xl">
+                    ⏱️
+                </div>
+                <div class="space-y-0.5">
+                    <h3 class="text-xs font-black uppercase text-indigo-400 tracking-wider">
+                        <?php echo get_current_lang() === 'ku' ? 'دەمژمێرا دانوستاندنێ یاریێ' : (get_current_lang() === 'ar' ? 'مؤقت النقاش واللعب' : 'Discussion & Game Timer'); ?>
+                    </h3>
+                    <p class="text-[10px] text-slate-400">
+                        <?php echo get_current_lang() === 'ku' ? 'کۆنترۆلا کاتژمێرا باژێڕی بکە بۆ دانوستاندنان دگەل لێدانا دەنگان.' : (get_current_lang() === 'ar' ? 'تحكم في وقت النقاش مع منبهات صوتية.' : 'Control the countdown time for discussion with audio alerts.'); ?>
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Preset Buttons -->
+                <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-850">
+                    <button type="button" onclick="setTimerPreset(30)" class="px-2.5 py-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded text-xs font-bold transition">30s</button>
+                    <button type="button" onclick="setTimerPreset(60)" class="px-2.5 py-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded text-xs font-bold transition">1m</button>
+                    <button type="button" onclick="setTimerPreset(120)" class="px-2.5 py-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded text-xs font-bold transition">2m</button>
+                    <button type="button" onclick="setTimerPreset(180)" class="px-2.5 py-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded text-xs font-bold transition">3m</button>
+                    <button type="button" onclick="setTimerPreset(300)" class="px-2.5 py-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded text-xs font-bold transition">5m</button>
+                </div>
+                
+                <!-- Main Timer Display & Controls -->
+                <div class="flex items-center gap-3 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 min-w-[220px] justify-between">
+                    <!-- Time Display -->
+                    <div id="timer-display" class="text-2xl font-black font-mono tracking-wider text-indigo-400">02:00</div>
+                    
+                    <!-- Controls -->
+                    <div class="flex items-center gap-2">
+                        <!-- Play/Pause Button -->
+                        <button type="button" id="timer-play-btn" onclick="toggleTimer()" class="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition text-xs font-bold" title="Start/Pause">
+                            ▶️
+                        </button>
+                        <!-- Reset Button -->
+                        <button type="button" onclick="resetTimer()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition text-xs font-bold" title="Reset">
+                            🔄
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -189,7 +242,19 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                         $gk_revealed = $db['grave_keeper_revealed_roles'] ?? false;
                         $gk_acted_tonight = $db['grave_keeper_acted_tonight'] ?? false;
 
-                        $call_grave_keeper_tonight = ($has_grave_keeper && $gk_charges > 0 && !$gk_revealed);
+                        $is_gk_dead = false;
+                        foreach ($db['players'] as $p) {
+                            if (($p['role'] ?? '') === 'Grave Keeper') {
+                                if ($p['status'] === 'dead' || in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                                    $is_gk_dead = true;
+                                }
+                                break;
+                            }
+                        }
+
+                        // Always call Grave Keeper if they exist and haven't revealed roles yet,
+                        // even if they are dead, to maintain the illusion and keep the game fair.
+                        $call_grave_keeper_tonight = ($has_grave_keeper && !$gk_revealed);
 
                         foreach ($all_game_roles as $role): 
                             if (in_array($role, ['Judge', 'Citizen', 'Mirhas'])) continue;
@@ -268,7 +333,20 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                         <div class="space-y-2 <?php echo $gk_acted_tonight ? 'hidden' : ''; ?>" id="gk-buttons-container">
                                             <select name="reveal_answer" class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded p-2 focus:outline-none focus:border-rose-500">
                                                 <option value=""><?php echo __('make_selection'); ?></option>
-                                                <option value="yes"><?php echo __('gk_option_yes'); ?></option>
+                                                <?php 
+                                                $lang = get_current_lang();
+                                                $disable_reason = '';
+                                                if ($is_gk_dead) {
+                                                    $disable_reason = ' (' . __('dead') . ')';
+                                                } elseif ($gk_charges <= 0) {
+                                                    $disable_reason = ' (' . ($lang === 'ku' ? 'چ جاران نەماینە' : ($lang === 'ar' ? 'لا توجد محاولات' : 'No charges left')) . ')';
+                                                }
+                                                ?>
+                                                <?php if ($is_gk_dead || $gk_charges <= 0): ?>
+                                                    <option value="yes" disabled><?php echo __('gk_option_yes') . $disable_reason; ?></option>
+                                                <?php else: ?>
+                                                    <option value="yes"><?php echo __('gk_option_yes'); ?></option>
+                                                <?php endif; ?>
                                                 <option value="no"><?php echo __('gk_option_no'); ?></option>
                                             </select>
                                             <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 rounded uppercase tracking-wider transition shadow">
@@ -357,64 +435,94 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                         <h2 class="text-lg font-black uppercase text-rose-400"><?php echo __('day_morning_report', $db['day']); ?></h2>
                     </div>
                     
-                    <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-3 text-sm">
+                    <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-4 text-sm">
+                        <!-- 1. Players leaving the game list -->
                         <?php if (empty($killed_list)): ?>
                             <p class="text-emerald-400 font-bold text-base">
                                 <?php echo __('no_players_leaving'); ?>
                             </p>
                         <?php else: ?>
-                            <?php foreach ($killed_list as $kname): ?>
-                                <p class="text-rose-400 font-black text-base">
-                                    <?php echo __('player_leaving_game', '<span class="text-white underline">' . htmlspecialchars($kname) . '</span>'); ?>
-                                </p>
-                            <?php endforeach; ?>
+                            <?php 
+                            $escaped_names = array_map(function($n) {
+                                return '<span class="text-white underline font-black">' . htmlspecialchars($n) . '</span>';
+                            }, $killed_list);
+                            
+                            $lang = get_current_lang();
+                            if ($lang === 'ku') {
+                                if (count($escaped_names) === 1) {
+                                    $sentence = $escaped_names[0] . ' دێ ژ یاریێ دەرکەڤیت.';
+                                } else {
+                                    $last = array_pop($escaped_names);
+                                    $sentence = implode(' و ', $escaped_names) . ' و ' . $last . ' دێ ژ یاریێ دەرکەڤن.';
+                                }
+                            } elseif ($lang === 'ar') {
+                                if (count($escaped_names) === 1) {
+                                    $sentence = $escaped_names[0] . ' سيغادر اللعبة.';
+                                } else {
+                                    $last = array_pop($escaped_names);
+                                    $sentence = implode(' و ', $escaped_names) . ' و ' . $last . ' سيغادرون اللعبة.';
+                                }
+                            } else {
+                                // English
+                                if (count($escaped_names) === 1) {
+                                    $sentence = $escaped_names[0] . ' will leave the game.';
+                                } else {
+                                    $last = array_pop($escaped_names);
+                                    $sentence = implode(', ', $escaped_names) . ' and ' . $last . ' will leave the game.';
+                                }
+                            }
+                            ?>
+                            <p class="text-rose-400 font-black text-base leading-relaxed">
+                                ⚠️ <?php echo $sentence; ?>
+                            </p>
                         <?php endif; ?>
 
-                        <!-- Grave Keeper Morning Section -->
-                        <div class="border-t border-slate-800 pt-3 mt-3 space-y-1">
-                            <p class="text-xs font-bold uppercase tracking-wider text-indigo-400"><?php echo __('gk_decision_status'); ?></p>
+                        <!-- 2. Grave Keeper Morning Section -->
+                        <div class="border-t border-slate-800 pt-3 mt-3 space-y-2">
                             <?php if ($db['grave_keeper_revealed_roles'] ?? false): ?>
                                 <p class="text-xs text-emerald-400 font-bold">
-                                    <?php echo __('gk_decision_yes'); ?>
-                                </p>
-                                <div class="mt-2 bg-indigo-950/40 border border-indigo-900 p-3 rounded space-y-1">
-                                    <span class="text-[11px] text-slate-400 uppercase font-bold block"><?php echo __('roles_out_of_game'); ?></span>
                                     <?php 
-                                    $dead_roles_found = false;
+                                    if ($lang === 'ku') {
+                                        echo '🪦 گۆڕهەڵکەن بڕیاردا کو ڕۆلان ئاشکرا بکەت، ڕۆلێن کو دەرکەفتینە ئەڤەنە:';
+                                    } elseif ($lang === 'ar') {
+                                        echo '🪦 قرر حارس القبور كشف الأدوار، الأدوار التي خرجت من اللعبة هي:';
+                                    } else {
+                                        echo '🪦 Grave keeper revealed the roles, the roles that are out of game are:';
+                                    }
+                                    ?>
+                                </p>
+                                <div class="mt-1 bg-indigo-950/40 border border-indigo-900/60 p-3 rounded-lg space-y-1 font-bold">
+                                    <?php 
+                                    $dead_roles = [];
                                     foreach ($db['players'] as $pl) {
                                         if ($pl['status'] === 'dead' || in_array($pl['name'], $db['delayed_departure'] ?? [])) {
-                                            $dead_roles_found = true;
-                                            echo '<div class="text-xs text-rose-300 font-bold">• ' . htmlspecialchars($pl['name']) . ' <span class="text-white uppercase underline">' . htmlspecialchars(get_role_label($pl['role'])) . '</span></div>';
+                                            $dead_roles[] = htmlspecialchars(get_role_label($pl['role']));
                                         }
                                     }
-                                    if (!$dead_roles_found) {
-                                        echo '<div class="text-xs text-slate-500 italic">' . __('no_players_eliminated_yet') . '</div>';
+                                    if (!empty($dead_roles)) {
+                                        echo '<span class="text-rose-300 text-xs">' . implode(', ', array_unique($dead_roles)) . '</span>';
+                                    } else {
+                                        echo '<span class="text-xs text-slate-500 italic">' . __('no_players_eliminated_yet') . '</span>';
                                     }
                                     ?>
                                 </div>
                             <?php else: ?>
                                 <p class="text-xs text-slate-400 font-bold">
-                                    <?php echo __('gk_decision_no'); ?>
+                                    <?php 
+                                    if ($lang === 'ku') {
+                                        echo '🪦 گۆڕهەڵکەن بڕیاردا کو ڕۆلان ئاشکرا نەکەت.';
+                                    } elseif ($lang === 'ar') {
+                                        echo '🪦 قرر حارس القبور عدم كشف الأدوار.';
+                                    } else {
+                                        echo '🪦 Grave keeper decided not to reveal the roles.';
+                                    }
+                                    ?>
                                 </p>
                             <?php endif; ?>
                         </div>
 
                         <p class="text-[11px] text-slate-500 italic"><?php echo __('read_phrase_notice'); ?></p>
                     </div>
-
-                    <?php if (!empty($db['investigation_results'])): ?>
-                        <div class="bg-sky-950/40 border border-sky-900 p-4 rounded-lg space-y-2">
-                            <h3 class="text-xs font-bold text-sky-400 uppercase"><?php echo __('investigator_result_last_night'); ?></h3>
-                            <?php foreach ($db['investigation_results'] as $res): ?>
-                                <div class="text-xs text-slate-200">
-                                    <?php echo __('appeared_as', '<strong class="text-white">' . htmlspecialchars($res['target']) . '</strong>'); ?> 
-                                    <span class="px-2 py-0.5 rounded font-bold <?php echo $res['result'] === 'Mafia' ? 'bg-rose-950 text-rose-400' : 'bg-emerald-950 text-emerald-400'; ?>">
-                                        <?php echo $res['result'] === 'Mafia' ? get_role_label('Regular Mafia') : get_role_label('Citizen'); ?>
-                                    </span>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
                 </div>
             <?php endif; ?>
 
@@ -535,6 +643,61 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                 </p>
                             </div>
                         </div>
+
+                        <!-- Host Only Confidential Operations Log (Collapsible Details Block) -->
+                        <?php if (!empty($db['last_night_report']['diary_entries']) || !empty($db['investigation_results'])): ?>
+                            <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-2">
+                                <details class="group">
+                                    <summary class="flex justify-between items-center font-bold text-xs uppercase tracking-wider text-emerald-400 cursor-pointer select-none">
+                                        <span class="flex items-center gap-1.5">
+                                            <span>📝</span> <?php echo get_current_lang() === 'ku' ? 'یادداشتێن شەڤێ یێن پاراستی (نهێنی - تەنێ بۆ مێهڤانداری)' : (get_current_lang() === 'ar' ? 'سجل العمليات الليلي السري (للمضيف فقط)' : 'Confidential Night Operations Log (Host Only)'); ?>
+                                        </span>
+                                        <span class="text-slate-400 transition group-open:rotate-180">
+                                            ▼
+                                        </span>
+                                    </summary>
+                                    <div class="mt-3 border-t border-slate-800 pt-3 space-y-4">
+                                        <!-- Investigator Results inside Confidential Log -->
+                                        <?php if (!empty($db['investigation_results'])): ?>
+                                            <div class="space-y-1.5">
+                                                <p class="text-[11px] font-black uppercase text-sky-400 tracking-wider">
+                                                    🔍 <?php echo __('investigator_result_last_night'); ?>
+                                                </p>
+                                                <div class="bg-slate-900 p-2.5 rounded border border-slate-800 space-y-1">
+                                                    <?php foreach ($db['investigation_results'] as $res): ?>
+                                                        <div class="text-xs text-slate-200">
+                                                            <?php echo __('appeared_as', '<strong class="text-white">' . htmlspecialchars($res['target']) . '</strong>'); ?> 
+                                                            <span class="px-2 py-0.5 rounded font-bold text-[10px] <?php echo $res['result'] === 'Mafia' ? 'bg-rose-950 text-rose-400' : 'bg-emerald-950 text-emerald-400'; ?>">
+                                                                <?php echo $res['result'] === 'Mafia' ? get_role_label('Regular Mafia') : get_role_label('Citizen'); ?>
+                                                            </span>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <!-- Diary Entries inside Confidential Log -->
+                                        <?php if (!empty($db['last_night_report']['diary_entries'])): ?>
+                                            <div class="space-y-1.5">
+                                                <p class="text-[11px] font-black uppercase text-emerald-400 tracking-wider">
+                                                    📊 <?php echo get_current_lang() === 'ku' ? 'کریارێن شەڤێ ب درێژی:' : (get_current_lang() === 'ar' ? 'تفاصيل الإجراءات الليلية:' : 'Detailed Night Action Log:'); ?>
+                                                </p>
+                                                <div class="bg-slate-900 p-3 rounded border border-slate-800 space-y-2 max-h-60 overflow-y-auto font-sans">
+                                                    <?php foreach ($db['last_night_report']['diary_entries'] as $entry): 
+                                                        $lang = get_current_lang();
+                                                        $msg = $entry[$lang] ?? $entry['en'] ?? '';
+                                                    ?>
+                                                        <div class="text-xs text-slate-300 leading-relaxed border-b border-slate-950 pb-1.5 last:border-none last:pb-0">
+                                                            <?php echo $msg; ?>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </details>
+                            </div>
+                        <?php endif; ?>
                     <?php endif; ?>
 
                     <!-- Role Share Form -->
@@ -718,6 +881,319 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                 };
 
                 let lastRolesSharedState = <?php echo json_encode($db['roles_shared'] ?? false); ?>;
+                
+                // --- AUDIO SYNTHESIZER AND SOUND SYSTEM ---
+                let AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                let audioCtx = null;
+
+                function getAudioContext() {
+                    if (!audioCtx && AudioContextClass) {
+                        audioCtx = new AudioContextClass();
+                    }
+                    return audioCtx;
+                }
+
+                function playSound(type) {
+                    if (localStorage.getItem('mafia_sound_muted') === 'true') return;
+                    
+                    let ctx = getAudioContext();
+                    if (!ctx) return;
+
+                    // Resume context if browser suspended it (required for security/user gesture policies)
+                    if (ctx.state === 'suspended') {
+                        ctx.resume();
+                    }
+
+                    const now = ctx.currentTime;
+                    
+                    try {
+                        switch (type) {
+                            case 'tick':
+                                // Soft mechanical tick for low-time
+                                {
+                                    const osc = ctx.createOscillator();
+                                    const gain = ctx.createGain();
+                                    osc.type = 'triangle';
+                                    osc.frequency.setValueAtTime(350, now);
+                                    gain.gain.setValueAtTime(0.04, now);
+                                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                                    osc.connect(gain);
+                                    gain.connect(ctx.destination);
+                                    osc.start(now);
+                                    osc.stop(now + 0.05);
+                                }
+                                break;
+                                
+                            case 'alarm':
+                                // Melodic "Time's up" double-ding alarm
+                                {
+                                    // High ding
+                                    const osc1 = ctx.createOscillator();
+                                    const gain1 = ctx.createGain();
+                                    osc1.type = 'sine';
+                                    osc1.frequency.setValueAtTime(587.33, now); // D5
+                                    gain1.gain.setValueAtTime(0.12, now);
+                                    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                                    osc1.connect(gain1);
+                                    gain1.connect(ctx.destination);
+                                    osc1.start(now);
+                                    osc1.stop(now + 0.35);
+                                    
+                                    // Higher chime 150ms later
+                                    const osc2 = ctx.createOscillator();
+                                    const gain2 = ctx.createGain();
+                                    osc2.type = 'sine';
+                                    osc2.frequency.setValueAtTime(783.99, now + 0.15); // G5
+                                    gain2.gain.setValueAtTime(0.15, now + 0.15);
+                                    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+                                    osc2.connect(gain2);
+                                    gain2.connect(ctx.destination);
+                                    osc2.start(now + 0.15);
+                                    osc2.stop(now + 0.5);
+                                }
+                                break;
+                                
+                            case 'daybreak':
+                                // Majestic morning chime
+                                {
+                                    const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+                                    notes.forEach((freq, idx) => {
+                                        const osc = ctx.createOscillator();
+                                        const gain = ctx.createGain();
+                                        osc.type = 'sine';
+                                        osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+                                        gain.gain.setValueAtTime(0.08, now + idx * 0.12);
+                                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.5);
+                                        osc.connect(gain);
+                                        gain.connect(ctx.destination);
+                                        osc.start(now + idx * 0.12);
+                                        osc.stop(now + idx * 0.12 + 0.6);
+                                    });
+                                }
+                                break;
+                                
+                            case 'nightfall':
+                                // Mysterious ambient low tones
+                                {
+                                    const notes = [164.81, 146.83, 110.00]; // E3, D3, A2
+                                    notes.forEach((freq, idx) => {
+                                        const osc = ctx.createOscillator();
+                                        const gain = ctx.createGain();
+                                        osc.type = 'sine';
+                                        osc.frequency.setValueAtTime(freq, now + idx * 0.18);
+                                        gain.gain.setValueAtTime(0.1, now + idx * 0.18);
+                                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.18 + 0.7);
+                                        osc.connect(gain);
+                                        gain.connect(ctx.destination);
+                                        osc.start(now + idx * 0.18);
+                                        osc.stop(now + idx * 0.18 + 0.8);
+                                    });
+                                }
+                                break;
+                                
+                            case 'click':
+                                // Subtle mechanical interface click
+                                {
+                                    const osc = ctx.createOscillator();
+                                    const gain = ctx.createGain();
+                                    osc.type = 'sine';
+                                    osc.frequency.setValueAtTime(600, now);
+                                    osc.frequency.exponentialRampToValueAtTime(200, now + 0.03);
+                                    gain.gain.setValueAtTime(0.03, now);
+                                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                                    osc.connect(gain);
+                                    gain.connect(ctx.destination);
+                                    osc.start(now);
+                                    osc.stop(now + 0.04);
+                                }
+                                break;
+                        }
+                    } catch (e) {
+                        console.warn("Audio playback failed: ", e);
+                    }
+                }
+
+                function toggleMute() {
+                    const isMuted = localStorage.getItem('mafia_sound_muted') === 'true';
+                    const newMuted = !isMuted;
+                    localStorage.setItem('mafia_sound_muted', newMuted ? 'true' : 'false');
+                    updateMuteUI();
+                    
+                    // Activate Context on first toggle to bypass browser autoplays blocking
+                    getAudioContext();
+                    if (!newMuted) {
+                        playSound('click');
+                    }
+                }
+
+                function updateMuteUI() {
+                    const isMuted = localStorage.getItem('mafia_sound_muted') === 'true';
+                    const muteIcon = document.getElementById('mute-icon');
+                    const muteText = document.getElementById('mute-text');
+                    const isKu = "<?php echo get_current_lang(); ?>" === "ku";
+                    const isAr = "<?php echo get_current_lang(); ?>" === "ar";
+                    
+                    if (isMuted) {
+                        if (muteIcon) muteIcon.innerText = '🔇';
+                        if (muteText) muteText.innerText = isKu ? 'دەنگ: بڕاو' : (isAr ? 'الصوت: مكتوم' : 'Sounds: OFF');
+                    } else {
+                        if (muteIcon) muteIcon.innerText = '🔊';
+                        if (muteText) muteText.innerText = isKu ? 'دەنگ: کارا' : (isAr ? 'الصوت: مفعّل' : 'Sounds: ON');
+                    }
+                }
+
+                // --- COUNTDOWN TIMER ENGINE ---
+                let timerInterval = null;
+                let defaultDuration = 120; // 2 minutes default
+
+                function getRemainingSeconds() {
+                    let saved = localStorage.getItem('mafia_timer_seconds');
+                    if (saved === null) return defaultDuration;
+                    return parseInt(saved, 10);
+                }
+
+                function saveRemainingSeconds(sec) {
+                    localStorage.setItem('mafia_timer_seconds', sec);
+                }
+
+                function updateTimerDisplay() {
+                    let totalSeconds = getRemainingSeconds();
+                    let mins = Math.floor(totalSeconds / 60);
+                    let secs = totalSeconds % 60;
+                    
+                    let displayStr = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+                    const displayElem = document.getElementById('timer-display');
+                    if (displayElem) {
+                        displayElem.innerText = displayStr;
+                        
+                        // Visual cues
+                        if (totalSeconds === 0) {
+                            displayElem.className = "text-2xl font-black font-mono tracking-wider text-rose-500 animate-pulse";
+                        } else if (totalSeconds <= 10) {
+                            displayElem.className = "text-2xl font-black font-mono tracking-wider text-amber-500";
+                        } else {
+                            displayElem.className = "text-2xl font-black font-mono tracking-wider text-indigo-400";
+                        }
+                    }
+                }
+
+                function toggleTimer() {
+                    playSound('click');
+                    let isRunning = localStorage.getItem('mafia_timer_running') === 'true';
+                    if (isRunning) {
+                        pauseTimer();
+                    } else {
+                        startTimer();
+                    }
+                }
+
+                function startTimer() {
+                    localStorage.setItem('mafia_timer_running', 'true');
+                    localStorage.setItem('mafia_timer_last_saved_time', Date.now());
+                    
+                    const playBtn = document.getElementById('timer-play-btn');
+                    if (playBtn) playBtn.innerText = '⏸️';
+
+                    if (timerInterval) clearInterval(timerInterval);
+                    timerInterval = setInterval(() => {
+                        let sec = getRemainingSeconds();
+                        if (sec > 0) {
+                            sec--;
+                            saveRemainingSeconds(sec);
+                            updateTimerDisplay();
+                            localStorage.setItem('mafia_timer_last_saved_time', Date.now());
+                            
+                            // Play tick sounds in last 10 seconds
+                            if (sec <= 10 && sec > 0) {
+                                playSound('tick');
+                            }
+                            
+                            if (sec === 0) {
+                                pauseTimer();
+                                playSound('alarm');
+                            }
+                        } else {
+                            pauseTimer();
+                        }
+                    }, 1000);
+                }
+
+                function pauseTimer() {
+                    localStorage.setItem('mafia_timer_running', 'false');
+                    const playBtn = document.getElementById('timer-play-btn');
+                    if (playBtn) playBtn.innerText = '▶️';
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
+                }
+
+                function resetTimer() {
+                    playSound('click');
+                    pauseTimer();
+                    saveRemainingSeconds(defaultDuration);
+                    updateTimerDisplay();
+                }
+
+                function setTimerPreset(sec) {
+                    playSound('click');
+                    pauseTimer();
+                    defaultDuration = sec;
+                    saveRemainingSeconds(sec);
+                    updateTimerDisplay();
+                }
+
+                // Handle background/tab recovery
+                function checkAndRecoverTimer() {
+                    let isRunning = localStorage.getItem('mafia_timer_running') === 'true';
+                    if (isRunning) {
+                        let lastSaved = parseInt(localStorage.getItem('mafia_timer_last_saved_time') || '0', 10);
+                        if (lastSaved > 0) {
+                            let elapsed = Math.floor((Date.now() - lastSaved) / 1000);
+                            if (elapsed > 0) {
+                                let sec = getRemainingSeconds();
+                                let newSec = Math.max(0, sec - elapsed);
+                                saveRemainingSeconds(newSec);
+                                if (newSec === 0) {
+                                    localStorage.setItem('mafia_timer_running', 'false');
+                                    playSound('alarm');
+                                }
+                            }
+                        }
+                        startTimer();
+                    } else {
+                        updateTimerDisplay();
+                    }
+                }
+
+                // Auto-hook click events for standard buttons for tactile feedback
+                document.addEventListener('click', (e) => {
+                    const tag = e.target.tagName.toLowerCase();
+                    if (tag === 'button' || (tag === 'input' && e.target.type === 'submit') || e.target.closest('a')) {
+                        // Exclude mute and timer buttons to avoid double clicking sounds
+                        if (e.target.id !== 'mute-btn' && !e.target.closest('#mute-btn') && e.target.id !== 'timer-play-btn' && !e.target.closest('#timer-play-btn') && !e.target.closest('[onclick^="setTimerPreset"]') && !e.target.closest('[onclick^="resetTimer"]')) {
+                            playSound('click');
+                        }
+                    }
+                });
+
+                // ON LOAD BOOTSTRAP FOR AUDIO AND TIMER
+                document.addEventListener('DOMContentLoaded', () => {
+                    updateMuteUI();
+                    checkAndRecoverTimer();
+
+                    // Phase Change Sound Alerts
+                    const currentPhase = "<?php echo $db['phase']; ?>";
+                    const savedPhase = sessionStorage.getItem('mafia_last_phase');
+                    if (savedPhase && savedPhase !== currentPhase) {
+                        if (currentPhase === 'day') {
+                            playSound('daybreak');
+                        } else if (currentPhase === 'night') {
+                            playSound('nightfall');
+                        }
+                    }
+                    sessionStorage.setItem('mafia_last_phase', currentPhase);
+                });
                 let lastPhaseState = "<?php echo $db['phase']; ?>";
                 let lastWinnerState = <?php echo json_encode($db['winner'] ?? null); ?>;
                 let lastGraveRevealState = <?php echo json_encode($db['grave_keeper_revealed_roles'] ?? false); ?>;

@@ -57,9 +57,16 @@ foreach ($all_game_roles as $r_name) {
     
     <!-- Language Selector & Navigation Header Bar -->
     <div class="max-w-md w-full flex flex-col sm:flex-row justify-between items-center bg-slate-800 border border-slate-700 p-3 rounded-xl shadow-lg gap-3">
-        <div class="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-wider">
-            🌐 <?php echo __('language'); ?>:
-            <?php render_language_selector(); ?>
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-wider">
+                🌐 <?php echo __('language'); ?>:
+                <?php render_language_selector(); ?>
+            </div>
+            <!-- Sound Mute Button -->
+            <button type="button" id="mute-btn" onclick="toggleMute()" class="bg-slate-700 hover:bg-slate-650 text-slate-300 border border-slate-600 rounded-lg px-2.5 py-1 text-[10px] font-black transition flex items-center gap-1 shadow-sm">
+                <span id="mute-icon">🔊</span>
+                <span id="mute-text">Sounds: ON</span>
+            </button>
         </div>
         <div>
             <a href="roles.php" class="bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/80 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase transition flex items-center gap-1.5 shadow">
@@ -153,6 +160,7 @@ foreach ($all_game_roles as $r_name) {
                     }
                 }
 
+                let isAudioPlayedOnReveal = false;
                 function startLocalCountdown(roleName) {
                     if (localStorage.getItem('mafia_role_revealed_' + myPlayerId) === 'true') {
                         renderHiddenState();
@@ -161,6 +169,12 @@ foreach ($all_game_roles as $r_name) {
 
                     if (window.isCountingDown) return;
                     window.isCountingDown = true;
+
+                    // Play reveal alarm sound to alert player!
+                    if (!isAudioPlayedOnReveal) {
+                        isAudioPlayedOnReveal = true;
+                        playSound('alarm');
+                    }
 
                     let timeLeft = 5;
                     const container = document.getElementById('role-container');
@@ -225,7 +239,123 @@ foreach ($all_game_roles as $r_name) {
                         });
                 }
 
+                // --- AUDIO SYNTHESIZER AND SOUND SYSTEM ---
+                let AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                let audioCtx = null;
+
+                function getAudioContext() {
+                    if (!audioCtx && AudioContextClass) {
+                        audioCtx = new AudioContextClass();
+                    }
+                    return audioCtx;
+                }
+
+                function playSound(type) {
+                    if (localStorage.getItem('mafia_sound_muted') === 'true') return;
+                    
+                    let ctx = getAudioContext();
+                    if (!ctx) return;
+
+                    if (ctx.state === 'suspended') {
+                        ctx.resume();
+                    }
+
+                    const now = ctx.currentTime;
+                    
+                    try {
+                        switch (type) {
+                            case 'alarm':
+                                // High chime alert
+                                {
+                                    const osc1 = ctx.createOscillator();
+                                    const gain1 = ctx.createGain();
+                                    osc1.type = 'sine';
+                                    osc1.frequency.setValueAtTime(587.33, now);
+                                    gain1.gain.setValueAtTime(0.12, now);
+                                    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                                    osc1.connect(gain1);
+                                    gain1.connect(ctx.destination);
+                                    osc1.start(now);
+                                    osc1.stop(now + 0.35);
+                                    
+                                    const osc2 = ctx.createOscillator();
+                                    const gain2 = ctx.createGain();
+                                    osc2.type = 'sine';
+                                    osc2.frequency.setValueAtTime(783.99, now + 0.15);
+                                    gain2.gain.setValueAtTime(0.15, now + 0.15);
+                                    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+                                    osc2.connect(gain2);
+                                    gain2.connect(ctx.destination);
+                                    osc2.start(now + 0.15);
+                                    osc2.stop(now + 0.5);
+                                }
+                                break;
+                                
+                            case 'click':
+                                // Mechanical click
+                                {
+                                    const osc = ctx.createOscillator();
+                                    const gain = ctx.createGain();
+                                    osc.type = 'sine';
+                                    osc.frequency.setValueAtTime(600, now);
+                                    osc.frequency.exponentialRampToValueAtTime(200, now + 0.03);
+                                    gain.gain.setValueAtTime(0.03, now);
+                                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                                    osc.connect(gain);
+                                    gain.connect(ctx.destination);
+                                    osc.start(now);
+                                    osc.stop(now + 0.04);
+                                }
+                                break;
+                        }
+                    } catch (e) {
+                        console.warn("Audio failed: ", e);
+                    }
+                }
+
+                function toggleMute() {
+                    const isMuted = localStorage.getItem('mafia_sound_muted') === 'true';
+                    const newMuted = !isMuted;
+                    localStorage.setItem('mafia_sound_muted', newMuted ? 'true' : 'false');
+                    updateMuteUI();
+                    
+                    getAudioContext();
+                    if (!newMuted) {
+                        playSound('click');
+                    }
+                }
+
+                function updateMuteUI() {
+                    const isMuted = localStorage.getItem('mafia_sound_muted') === 'true';
+                    const muteIcon = document.getElementById('mute-icon');
+                    const muteText = document.getElementById('mute-text');
+                    const isKu = "<?php echo get_current_lang(); ?>" === "ku";
+                    const isAr = "<?php echo get_current_lang(); ?>" === "ar";
+                    
+                    if (isMuted) {
+                        if (muteIcon) muteIcon.innerText = '🔇';
+                        if (muteText) muteText.innerText = isKu ? 'دەنگ: بڕاو' : (isAr ? 'الصوت: مكتوم' : 'Sounds: OFF');
+                    } else {
+                        if (muteIcon) muteIcon.innerText = '🔊';
+                        if (muteText) muteText.innerText = isKu ? 'دەنگ: کارا' : (isAr ? 'الصوت: مفعّل' : 'Sounds: ON');
+                    }
+                }
+
+                // Auto-click feedback
+                document.addEventListener('click', (e) => {
+                    const tag = e.target.tagName.toLowerCase();
+                    if (tag === 'button' || (tag === 'input' && e.target.type === 'submit') || e.target.closest('a')) {
+                        if (e.target.id !== 'mute-btn' && !e.target.closest('#mute-btn')) {
+                            playSound('click');
+                        }
+                    }
+                });
+
                 // --- INITIAL LOAD LOGIC ---
+                document.addEventListener('DOMContentLoaded', () => {
+                    updateMuteUI();
+                });
+
                 if (initialRolesShared && initialMyRole && initialMyRole !== 'Pending') {
                     startLocalCountdown(initialMyRole);
                 } else if (myPlayerId) {

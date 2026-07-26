@@ -317,6 +317,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($action === 'answer_grave_keeper_reveal') {
             $answer = $_POST['reveal_answer'] ?? 'no';
+
+            // Check if Grave Keeper is dead
+            $is_gk_dead = false;
+            foreach ($db['players'] as $p) {
+                if (($p['role'] ?? '') === 'Grave Keeper') {
+                    if ($p['status'] === 'dead' || in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                        $is_gk_dead = true;
+                    }
+                    break;
+                }
+            }
+
+            if ($is_gk_dead) {
+                $answer = 'no';
+            }
+
             if ($answer === 'yes') {
                 $db['grave_keeper_revealed_roles'] = true;
                 if (($db['grave_keeper_charges'] ?? 2) > 0) {
@@ -497,9 +513,158 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                 }
 
+                $diary = [];
+                
+                // 1. Mafia Boss Target
+                if ($mafia_target) {
+                    $diary[] = [
+                        'en' => "• 🔪 <strong>Mafia Boss</strong> targeted <strong class='text-rose-400'>$mafia_target</strong>.",
+                        'ku' => "• 🔪 <strong>سەرۆکێ مافیا</strong> تەقە ل <strong class='text-rose-400'>$mafia_target</strong> کر.",
+                        'ar' => "• 🔪 <strong>زعيم المافيا</strong> استهدف <strong class='text-rose-400'>$mafia_target</strong>."
+                    ];
+                } else {
+                    $diary[] = [
+                        'en' => "• 🔪 <strong>Mafia Boss</strong> did not choose any target.",
+                        'ku' => "• 🔪 <strong>سەرۆکێ مافیا</strong> چ کەس کەنەکرە ئارمانج.",
+                        'ar' => "• 🔪 <strong>زعيم المافيا</strong> لم يختر أي هدف."
+                    ];
+                }
+
+                // 2. Town Doctor Protection
+                if ($town_doc_target) {
+                    $diary[] = [
+                        'en' => "• 🩺 <strong>Town Doctor</strong> protected <strong class='text-emerald-400'>$town_doc_target</strong>.",
+                        'ku' => "• 🩺 <strong>نوژدارێ هاولاتی</strong> پاراستن ل <strong class='text-emerald-400'>$town_doc_target</strong> کر.",
+                        'ar' => "• 🩺 <strong>طبيب البلدة</strong> قام بحماية <strong class='text-emerald-400'>$town_doc_target</strong>."
+                    ];
+                }
+
+                // 3. Mafia Doctor Protection
+                if ($mafia_doc_target) {
+                    $diary[] = [
+                        'en' => "• 🧪 <strong>Mafia Doctor</strong> protected <strong class='text-rose-400'>$mafia_doc_target</strong>.",
+                        'ku' => "• 🧪 <strong>نوژدارێ مافیا</strong> پاراستن ل <strong class='text-rose-400'>$mafia_doc_target</strong> کر.",
+                        'ar' => "• 🧪 <strong>طبيب المافيا</strong> قام بحماية <strong class='text-rose-400'>$mafia_doc_target</strong>."
+                    ];
+                }
+
+                // 4. Police Target
+                if ($police_target) {
+                    $diary[] = [
+                        'en' => "• 👮 <strong>Police</strong> targeted <strong class='text-sky-400'>$police_target</strong>.",
+                        'ku' => "• 👮 <strong>پۆلیس</strong> تەقە ل <strong class='text-sky-400'>$police_target</strong> کر.",
+                        'ar' => "• 👮 <strong>الشرطي</strong> استهدف <strong class='text-sky-400'>$police_target</strong>."
+                    ];
+                }
+
+                // 5. Deceiver Target
+                $deceiver_target = $db['night_actions']['Deceiver'] ?? null;
+                if ($deceiver_target) {
+                    $diary[] = [
+                        'en' => "• 🎭 <strong>Deceiver</strong> disguised <strong class='text-violet-400'>$deceiver_target</strong>.",
+                        'ku' => "• 🎭 <strong>فێلبازێ مافیا</strong> فێڵ ل سەر <strong class='text-violet-400'>$deceiver_target</strong> کر.",
+                        'ar' => "• 🎭 <strong>مخادع المافيا</strong> قام بتمويه <strong class='text-violet-400'>$deceiver_target</strong>."
+                    ];
+                }
+
+                // 6. Investigator Target
+                $investigator_target = $db['night_actions']['Investigator'] ?? null;
+                if ($investigator_target) {
+                    $eval_res = evaluate_investigation($investigator_target, $db);
+                    $role_lbl_en = ($eval_res === 'Mafia') ? 'Mafia' : 'Citizen';
+                    $role_lbl_ku = ($eval_res === 'Mafia') ? 'مافیا' : 'وەلاتی';
+                    $role_lbl_ar = ($eval_res === 'Mafia') ? 'مافيا' : 'مواطن';
+                    $diary[] = [
+                        'en' => "• 🔍 <strong>Investigator</strong> checked <strong class='text-amber-400'>$investigator_target</strong> and found them as: <strong class='text-white underline'>$role_lbl_en</strong>.",
+                        'ku' => "• 🔍 <strong>ڤەکولەر</strong> ل سەر <strong class='text-amber-400'>$investigator_target</strong> لێکۆڵینەوە کر و دیت کو ئەو یێ دیارە وەک: <strong class='text-white underline'>$role_lbl_ku</strong>.",
+                        'ar' => "• 🔍 <strong>المحقق</strong> كشف على <strong class='text-amber-400'>$investigator_target</strong> وظهر له كـ: <strong class='text-white underline'>$role_lbl_ar</strong>."
+                    ];
+                }
+
+                // 7. Suicidal Bomb Target
+                if ($suicidal_bomb_target) {
+                    $diary[] = [
+                        'en' => "• 💣 <strong>Suicidal Bomb</strong> targeted <strong class='text-red-500'>$suicidal_bomb_target</strong> for night explosion.",
+                        'ku' => "• 💣 <strong>بۆمبێ</strong> خۆ ل سەر <strong class='text-red-500'>$suicidal_bomb_target</strong> بەرهەڤکر بۆ تەقاندنێ.",
+                        'ar' => "• 💣 <strong>الانتحاري</strong> استهدف <strong class='text-red-500'>$suicidal_bomb_target</strong> للتفجير الليلة."
+                    ];
+                }
+
+                // 8. Resulting Checks (Doctors, Mirhas, and deaths)
+                if ($mafia_target) {
+                    $saved_by_doc = ($mafia_target === $town_doc_target || $mafia_target === $mafia_doc_target);
+                    if ($suicidal_bomb_target && $mafia_target === $bomb_player_name) {
+                        $saved_by_doc = false;
+                    }
+                    if ($saved_by_doc) {
+                        $diary[] = [
+                            'en' => "🛡️ <strong>Doctor Protection:</strong> <strong class='text-white'>$mafia_target</strong> was shot by the Mafia but was <span class='text-emerald-400 font-bold underline'>successfully saved</span> by a Doctor!",
+                            'ku' => "🛡️ <strong>پاراستنا نوژداری:</strong> تەقە ل <strong class='text-white'>$mafia_target</strong> هاتە کرن ژ لایێ مافیایێ ڤە، بەس ژ لایێ نوژداری ڤە <span class='text-emerald-400 font-bold underline'>هاتە پاراستن</span>!",
+                            'ar' => "🛡️ <strong>حماية الطبيب:</strong> تم إطلاق النار على <strong class='text-white'>$mafia_target</strong> من المافيا ولكن تم <span class='text-emerald-400 font-bold underline'>إنقاذه بنجاح</span> بواسطة الطبيب!"
+                        ];
+                    } else {
+                        // Check if Mirhas
+                        $is_mirhas = false;
+                        foreach ($db['players'] as $p) {
+                            if ($p['name'] === $mafia_target && ($p['role'] ?? '') === 'Mirhas') {
+                                $is_mirhas = true;
+                                break;
+                            }
+                        }
+                        if ($is_mirhas) {
+                            $diary[] = [
+                                'en' => "🛡️ <strong>Mirhas Resistance:</strong> <strong class='text-white'>$mafia_target</strong> was shot but survives for 1 extra day due to Mirhas passive ability.",
+                                'ku' => "🛡️ <strong>خۆڕاگرییا مێرخاسی:</strong> تەقە ل <strong class='text-white'>$mafia_target</strong> هاتە کرن بەس ژ بەر شیانێن وی ئەو دێ بۆ ماوێ ۱ رۆژێ د زیندێ دا مینیت.",
+                                'ar' => "🛡️ <strong>مقاومة ميرخاس:</strong> تم إطلاق النار على <strong class='text-white'>$mafia_target</strong> ولكنه يبقى حياً ليوم واحد إضافي بسبب قدرته."
+                            ];
+                        } else {
+                            $diary[] = [
+                                'en' => "💀 <strong>Eliminated:</strong> <strong class='text-white'>$mafia_target</strong> was shot and died.",
+                                'ku' => "💀 <strong>دەرکەفتن:</strong> تەقە ل <strong class='text-white'>$mafia_target</strong> هاتە کرن و مریت.",
+                                'ar' => "💀 <strong>تصفية:</strong> تم إطلاق النار على <strong class='text-white'>$mafia_target</strong> وتوفي."
+                            ];
+                        }
+                    }
+                }
+
+                if ($police_target) {
+                    $is_mafia = in_array($police_target_role, ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']);
+                    if (!$is_mafia) {
+                        $diary[] = [
+                            'en' => "⚠️ <strong>Police Penalty:</strong> Police targeted innocent <strong class='text-white'>$police_target</strong>. Police player <strong class='text-white'>$police_player_name</strong> died as penalty.",
+                            'ku' => "⚠️ <strong>سزایێ پۆلیسی:</strong> پۆلیسی تەقە ل وەلاتیێ بێ گونەهـ <strong class='text-white'>$police_target</strong> کر! پۆلیس خۆ ب خۆ <strong class='text-white'>$police_player_name</strong> مریت.",
+                            'ar' => "⚠️ <strong>عقوبة الشرطي:</strong> استهدف الشرطي مواطناً بريئاً <strong class='text-white'>$police_target</strong>. توفي الشرطي <strong class='text-white'>$police_player_name</strong> كعقوبة."
+                        ];
+                    } else {
+                        $saved_by_doc = ($police_target === $town_doc_target || $police_target === $mafia_doc_target);
+                        if ($saved_by_doc) {
+                            $diary[] = [
+                                'en' => "🛡️ <strong>Doctor Protection:</strong> Mafia member <strong class='text-white'>$police_target</strong> was shot by Police but <span class='text-emerald-400 font-bold underline'>saved by a Doctor</span>!",
+                                'ku' => "🛡️ <strong>پاراستنا نوژداری:</strong> ئەندامێ مافیایێ <strong class='text-white'>$police_target</strong> ژ لایێ پۆلیسی ڤە هاتە تەقکرن بەس نوژداری <span class='text-emerald-400 font-bold underline'>ئەو پاراست</span>!",
+                                'ar' => "🛡️ <strong>حماية الطبيب:</strong> تم استهداف المافيا <strong class='text-white'>$police_target</strong> من الشرطي ولكن تم <span class='text-emerald-400 font-bold underline'>إنقاذه بواسطة الطبيب</span>!"
+                            ];
+                        } else {
+                            $diary[] = [
+                                'en' => "💀 <strong>Mafia Dead:</strong> Mafia member <strong class='text-white'>$police_target</strong> was shot by Police and died.",
+                                'ku' => "💀 <strong>کوشتنا مافیایێ:</strong> ئەندامێ مافیایێ <strong class='text-white'>$police_target</strong> ژ لایێ پۆلیسی ڤە هاتە کوشتن و مریت.",
+                                'ar' => "💀 <strong>وفاة مافيا:</strong> تم إطلاق النار على المافيا <strong class='text-white'>$police_target</strong> وتوفي."
+                            ];
+                        }
+                    }
+                }
+
+                if ($suicidal_bomb_target && $bomb_player_name) {
+                    $diary[] = [
+                        'en' => "💥 <strong>Bomb Detonation:</strong> Suicidal Bomb <strong class='text-white'>$bomb_player_name</strong> exploded on <strong class='text-white'>$suicidal_bomb_target</strong>. Both are dead.",
+                        'ku' => "💥 <strong>تەقینا بۆمبێ:</strong> بۆمبێ خۆ کەرتی <strong class='text-white'>$bomb_player_name</strong> خۆ دگەل <strong class='text-white'>$suicidal_bomb_target</strong> تەقاند. هەردوو مرن.",
+                        'ar' => "💥 <strong>تفجير الانتحاري:</strong> قام الانتحاري <strong class='text-white'>$bomb_player_name</strong> بتفجير نفسه مع <strong class='text-white'>$suicidal_bomb_target</strong>. كلاهما ماتا."
+                    ];
+                }
+
                 $db['last_night_report'] = [
                     'killed_names' => array_values($final_killed),
-                    'saved_names' => array_values(array_unique($saved_names))
+                    'saved_names' => array_values(array_unique($saved_names)),
+                    'diary_entries' => $diary
                 ];
 
                 $db['phase'] = 'day';
