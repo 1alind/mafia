@@ -540,7 +540,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                     <!-- Role Share Form -->
                     <div id="role-action-container">
                         <?php if (!($db['roles_shared'] ?? false)): ?>
-                            <form method="POST" class="bg-slate-950 p-4 rounded-lg border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                            <form method="POST" class="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-4">
                                 <input type="hidden" name="action" value="share_roles">
                                 
                                 <div class="flex items-center gap-3">
@@ -549,7 +549,19 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                            class="w-16 bg-slate-900 border border-slate-700 text-center text-white text-sm font-bold rounded p-1.5 focus:outline-none focus:border-rose-500">
                                 </div>
 
-                                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded font-bold text-xs uppercase tracking-wider transition shadow">
+                                <div class="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Mafia Doctor" checked> Mafia Doctor</label>
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Deceiver" checked> Deceiver</label>
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Police" checked> Police</label>
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Town Doctor" checked> Town Doctor</label>
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Investigator" checked> Investigator</label>
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Grave Keeper" checked> Grave Keeper</label>
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Judge" checked> Judge</label>
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Mirhas" checked> Mirhas</label>
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="special_roles[]" value="Suicidal Bomb" checked> Suicidal Bomb</label>
+                                </div>
+
+                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded font-bold text-xs uppercase tracking-wider transition shadow">
                                     <?php echo __('distribute_roles_start'); ?>
                                 </button>
                             </form>

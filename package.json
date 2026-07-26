@@ -7,5 +7,10 @@
     "dev": "php -S 0.0.0.0:3000",
     "build": "echo 'Built PHP app'",
     "start": "php -S 0.0.0.0:3000"
+  },
+  "dependencies": {
+    "@php-wasm/node": "^3.1.46",
+    "express": "^5.2.1",
+    "php-wasm": "^0.1.0"
   }
 }

@@ -111,7 +111,7 @@ return [
     'unlock_phase_notice' => '⚠️ ڕۆلان بەلاڤ بکە دا قۆناغ ڤەبن',
     'player_portal_title' => '👥 دەرگەهێ یاریزانی',
     'enter_name_to_join' => 'ناڤێ خۆ بنڤێسە دا بەشدار ببی د یاریێدا دا.',
-    'your_display_name' => 'ناڤێ تە یێ دیار...',
+    'your_display_name' => 'ناڤێ تە...',
     'join_game' => 'بەشداربوون د یاریێ دا',
     'logged_in_as' => 'تۆ بەشداری وەک:',
     'waiting_for_host' => '⏳ ل هیڤیا سەرپەرشتی بە بۆ بەلاڤکرنا ڕۆلان...',

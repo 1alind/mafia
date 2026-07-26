@@ -178,7 +178,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $deck[] = 'Mafia Boss';
                 
                 $remaining_mafia_slots = $mafia_count - 1;
-                $mafia_specials = ['Mafia Doctor', 'Deceiver'];
+                $special_roles_input = $_POST['special_roles'] ?? [];
+                
+                $mafia_specials = array_values(array_intersect($special_roles_input, ['Mafia Doctor', 'Deceiver']));
                 shuffle($mafia_specials);
                 
                 for ($i = 0; $i < $remaining_mafia_slots; $i++) {
@@ -189,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                 }
 
-                $citizen_specials = ['Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Judge', 'Mirhas', 'Suicidal Bomb'];
+                $citizen_specials = array_values(array_intersect($special_roles_input, ['Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Judge', 'Mirhas', 'Suicidal Bomb']));
                 shuffle($citizen_specials);
 
                 while (count($deck) < $total_players && !empty($citizen_specials)) {
