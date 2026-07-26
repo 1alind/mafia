@@ -1248,9 +1248,17 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                     fetch('actions.php?ajax=1')
                         .then(r => r.json())
                         .then(data => {
-                            if (data.roles_shared !== lastRolesSharedState || data.phase !== lastPhaseState || data.winner !== lastWinnerState || data.grave_keeper_revealed_roles !== lastGraveRevealState || data.grave_keeper_charges !== lastGraveChargesState || JSON.stringify(data.night_actions) !== JSON.stringify(lastNightActionsState)) {
+                            if (data.roles_shared !== lastRolesSharedState || data.phase !== lastPhaseState || data.winner !== lastWinnerState || data.grave_keeper_revealed_roles !== lastGraveRevealState || data.grave_keeper_charges !== lastGraveChargesState) {
                                 location.reload();
                                 return;
+                            }
+
+                            if (JSON.stringify(data.night_actions) !== JSON.stringify(lastNightActionsState)) {
+                                lastNightActionsState = data.night_actions;
+                                if (typeof refreshNightCardUI === 'function') {
+                                    const allRoles = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Judge', 'Grave Keeper', 'Mirhas', 'Citizen'];
+                                    allRoles.forEach(r => refreshNightCardUI(r, data));
+                                }
                             }
 
                             document.getElementById('online-count').innerText = data.players.length;
@@ -1329,18 +1337,30 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
 
                 setInterval(pollHost, 2000);
 
-                // AJAX handler for night actions with full page reload
+                // AJAX handler for night actions without full page reload
                 function handleNightActionSubmit(event, role) {
                     event.preventDefault();
                     const form = event.target;
                     const formData = new FormData(form);
+                    formData.append('ajax', '1');
 
-                    fetch('', {
+                    fetch('actions.php?ajax=1', {
                         method: 'POST',
-                        body: formData
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
                     })
-                    .then(() => {
-                        location.reload();
+                    .then(r => r.json())
+                    .then(data => {
+                        lastNightActionsState = data.night_actions;
+                        if (typeof refreshNightCardUI === 'function') {
+                            const allRoles = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Judge', 'Grave Keeper', 'Mirhas', 'Citizen'];
+                            allRoles.forEach(r => refreshNightCardUI(r, data));
+                        }
+                        if (typeof pollHost === 'function') {
+                            pollHost();
+                        }
                     })
                     .catch(err => console.error('Error submitting night action:', err));
                 }
@@ -1350,13 +1370,25 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                     formData.append('action', 'record_night_target');
                     formData.append('role', role);
                     formData.append('target_id', '');
+                    formData.append('ajax', '1');
 
-                    fetch('', {
+                    fetch('actions.php?ajax=1', {
                         method: 'POST',
-                        body: formData
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
                     })
-                    .then(() => {
-                        location.reload();
+                    .then(r => r.json())
+                    .then(data => {
+                        lastNightActionsState = data.night_actions;
+                        if (typeof refreshNightCardUI === 'function') {
+                            const allRoles = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Judge', 'Grave Keeper', 'Mirhas', 'Citizen'];
+                            allRoles.forEach(r => refreshNightCardUI(r, data));
+                        }
+                        if (typeof pollHost === 'function') {
+                            pollHost();
+                        }
                     })
                     .catch(err => console.error('Error canceling night action:', err));
                 }
@@ -1408,6 +1440,69 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                         }
                     }
                 }
+
+                // Helper to get cookie value
+                function getCookie(name) {
+                    let value = "; " + document.cookie;
+                    let parts = value.split("; " + name + "=");
+                    if (parts.length === 2) return parts.pop().split(";").shift();
+                }
+
+                // Intercept all POST form submissions on index.php to avoid page reload
+                document.addEventListener('submit', function(e) {
+                    const form = e.target;
+                    if (form.tagName === 'FORM' && form.method.toLowerCase() === 'post') {
+                        if (e.defaultPrevented) return;
+                        e.preventDefault();
+
+                        const formData = new FormData(form);
+                        formData.append('ajax', '1');
+
+                        let targetUrl = form.getAttribute('action') || '';
+                        if (!targetUrl) {
+                            targetUrl = window.location.pathname;
+                        }
+
+                        fetch(targetUrl, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            const browserId = getCookie('mafia_browser_id');
+                            const isHostPage = window.location.pathname.endsWith('index.php') || window.location.pathname === '/';
+                            
+                            // Redirect from host to player if they are no longer host
+                            if (isHostPage && data.host_browser_id && data.host_browser_id !== browserId) {
+                                window.location.href = 'player.php';
+                                return;
+                            }
+
+                            // If we are in the host page, trigger pollHost() to instantly update UI
+                            if (typeof pollHost === 'function') {
+                                pollHost();
+                            }
+
+                            // Hide the Roles selection modal if it is open
+                            const rolesModal = document.getElementById('roles-config-modal');
+                            if (rolesModal && !rolesModal.classList.contains('hidden')) {
+                                rolesModal.classList.add('hidden');
+                            }
+                        })
+                        .catch(err => {
+                            console.error('AJAX form submission error:', err);
+                            window.location.reload();
+                        });
+                    }
+                });
             </script>
         <?php endif; ?>
     </div>

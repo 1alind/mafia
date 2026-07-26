@@ -121,6 +121,17 @@ function check_win_conditions(&$db) {
     }
 }
 
+function terminate_request($target) {
+    global $db;
+    if (isset($_POST['ajax']) || isset($_GET['ajax']) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest')) {
+        header('Content-Type: application/json');
+        echo json_encode($db);
+        exit;
+    }
+    header("Location: " . $target);
+    exit;
+}
+
 // Handle POST actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $action = $_POST['action'];
@@ -137,15 +148,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         } else {
             $_SESSION['host_error'] = __('incorrect_host_password');
         }
-        header("Location: index.php");
-        exit;
+        terminate_request("index.php");
     }
 
     if ($action === 'join_game') {
         if (empty($db['host_browser_id'])) {
             $_SESSION['join_error'] = __('no_host_error_desc');
-            header("Location: player.php");
-            exit;
+            terminate_request("player.php");
         }
 
         $name = trim($_POST['player_name'] ?? '');
@@ -173,8 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
             save_db($db);
         }
-        header("Location: player.php");
-        exit;
+        terminate_request("player.php");
     }
 
     if ($is_host) {
@@ -230,8 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $db['logs'][] = "Roles distributed to {$total_players} players ({$mafia_count} Mafia). Night 1 started.";
                 save_db($db);
             }
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
 
         if ($action === 'hide_roles') {
@@ -258,8 +265,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $db['reset_token'] = uniqid('rst_', true);
             $db['logs'][] = "Game reset for a Rematch.";
             save_db($db);
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
 
         if ($action === 'add_bot' || $action === 'add_five_bots') {
@@ -306,8 +312,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $db['logs'][] = "Bot player '{$found_name}' joined the game.";
             }
             save_db($db);
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
 
         if ($action === 'remove_player_setup') {
@@ -321,8 +326,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
             $db['players'] = array_values($db['players']);
             save_db($db);
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
 
         if ($action === 'hard_reset') {
@@ -350,8 +354,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'delayed_departure' => []
             ];
             save_db($db);
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
 
         if ($action === 'record_night_target') {
@@ -392,8 +395,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 echo json_encode($db);
                 exit;
             }
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
 
         if ($action === 'answer_grave_keeper_reveal') {
@@ -434,8 +436,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 echo json_encode($db);
                 exit;
             }
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
 
         if ($action === 'next_phase') {
@@ -791,8 +792,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 save_db($db);
             }
 
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
 
         if ($action === 'toggle_status') {
@@ -806,8 +806,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
             check_win_conditions($db);
             save_db($db);
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
 
         if ($action === 'kick_player_day') {
@@ -825,15 +824,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
             check_win_conditions($db);
             save_db($db);
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
 
         if ($action === 'judge_cancel_votings') {
             $db['logs'][] = "⚖️ Judge cancelled all daytime votings for Day {$db['day']}. No players were kicked today.";
             save_db($db);
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
 
         if ($action === 'judge_kick_one_player') {
@@ -853,8 +850,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 check_win_conditions($db);
                 save_db($db);
             }
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
 
         if ($action === 'suicidal_bomb_explode') {
@@ -881,8 +877,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 check_win_conditions($db);
                 save_db($db);
             }
-            header("Location: index.php");
-            exit;
+            terminate_request("index.php");
         }
     }
 }

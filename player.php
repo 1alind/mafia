@@ -356,6 +356,76 @@ foreach ($all_game_roles as $r_name) {
                     updateMuteUI();
                 });
 
+                // Helper to get cookie value
+                function getCookie(name) {
+                    let value = "; " + document.cookie;
+                    let parts = value.split("; " + name + "=");
+                    if (parts.length === 2) return parts.pop().split(";").shift();
+                }
+
+                // Intercept all POST form submissions on player.php to avoid page reload
+                document.addEventListener('submit', function(e) {
+                    const form = e.target;
+                    if (form.tagName === 'FORM' && form.method.toLowerCase() === 'post') {
+                        if (e.defaultPrevented) return;
+                        e.preventDefault();
+
+                        const formData = new FormData(form);
+                        formData.append('ajax', '1');
+
+                        let targetUrl = form.getAttribute('action') || '';
+                        if (!targetUrl) {
+                            targetUrl = window.location.pathname;
+                        }
+
+                        fetch(targetUrl, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            const browserId = getCookie('mafia_browser_id');
+                            const isPlayerPage = window.location.pathname.endsWith('player.php');
+                            
+                            // Redirect from player to host if they successfully claimed host
+                            if (isPlayerPage && data.host_browser_id && data.host_browser_id === browserId) {
+                                window.location.href = 'index.php';
+                                return;
+                            }
+
+                            // If they registered successfully (join_game), reload to render logged in template
+                            const actionInput = form.querySelector('input[name="action"]');
+                            if (actionInput && actionInput.value === 'join_game') {
+                                window.location.reload();
+                                return;
+                            }
+
+                            // If they submitted a reset or similar action, reload
+                            if (actionInput && (actionInput.value === 'hard_reset' || actionInput.value === 'reset_session')) {
+                                window.location.reload();
+                                return;
+                            }
+
+                            // Otherwise, update the player state dynamically!
+                            if (typeof pollPlayer === 'function') {
+                                pollPlayer();
+                            }
+                        })
+                        .catch(err => {
+                            console.error('AJAX form submission error:', err);
+                            window.location.reload();
+                        });
+                    }
+                });
+
                 if (initialRolesShared && initialMyRole && initialMyRole !== 'Pending') {
                     startLocalCountdown(initialMyRole);
                 } else if (myPlayerId) {
