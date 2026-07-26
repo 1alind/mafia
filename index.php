@@ -526,52 +526,66 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                 </div>
             <?php endif; ?>
 
-            <!-- JUDGE DAYTIME CONTROLS -->
-            <?php if ($db['phase'] === 'day' && empty($db['winner'])): ?>
-                <div class="bg-indigo-950/60 border-2 border-indigo-500/60 p-5 rounded-xl space-y-4 shadow-xl">
-                    <div class="flex items-center justify-between border-b border-indigo-900/80 pb-3">
+            <!-- JUDGE DAYTIME INFO -->
+            <?php 
+            $has_judge = false;
+            $judge_name = '';
+            $is_judge_alive = false;
+            foreach ($db['players'] as $p) {
+                if (($p['role'] ?? '') === 'Judge') {
+                    $has_judge = true;
+                    $judge_name = $p['name'];
+                    if ($p['status'] === 'alive') {
+                        $is_judge_alive = true;
+                    }
+                    break;
+                }
+            }
+            ?>
+            <?php if ($db['phase'] === 'day' && $has_judge && empty($db['winner'])): ?>
+                <div class="bg-indigo-950/40 border border-indigo-900 p-5 rounded-xl space-y-4 shadow-lg">
+                    <div class="flex items-center justify-between border-b border-indigo-900/60 pb-3">
                         <h3 class="text-sm font-black uppercase text-indigo-300 tracking-wider">
                             <?php echo __('judge_panel_title'); ?>
                         </h3>
-                        <span class="bg-indigo-900/80 border border-indigo-700 text-indigo-200 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">
+                        <span class="bg-indigo-950/80 border border-indigo-800 text-indigo-300 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">
                             ⚖️ <?php echo get_role_label('Judge'); ?>
                         </span>
                     </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Form 1: Cancel all votings -->
-                        <form method="POST" class="bg-slate-900 p-4 rounded-lg border border-slate-800 space-y-3 flex flex-col justify-between">
-                            <input type="hidden" name="action" value="judge_cancel_votings">
+                    <div class="space-y-3">
+                        <div class="bg-slate-900 p-4 rounded-lg border border-slate-800 space-y-2">
                             <p class="text-xs text-slate-300 leading-relaxed">
-                                <?php echo __('desc_judge'); ?>
+                                ⚖️ <strong><?php echo __('role_judge'); ?>:</strong> <?php echo __('desc_judge'); ?>
                             </p>
-                            <button type="submit" class="w-full bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs py-2.5 rounded-lg uppercase tracking-wider transition shadow">
-                                <?php echo __('judge_cancel_all_btn'); ?>
-                            </button>
-                        </form>
+                            <p class="text-[11px] text-slate-400">
+                                <?php if ($is_judge_alive): ?>
+                                    <span class="text-emerald-400 font-bold">● <?php echo get_current_lang() === 'ku' ? 'یاریزانێ دادوەر د ساخە:' : (get_current_lang() === 'ar' ? 'لاعب القاضي على قيد الحياة:' : 'The Judge player is alive:'); ?></span> 
+                                    <strong class="text-white underline"><?php echo htmlspecialchars($judge_name); ?></strong>
+                                <?php else: ?>
+                                    <span class="text-rose-400 font-bold">○ <?php echo get_current_lang() === 'ku' ? 'دادوەر هاتیە کوشتن!' : (get_current_lang() === 'ar' ? 'تم قتل القاضي!' : 'The Judge has been eliminated!'); ?></span>
+                                <?php endif; ?>
+                            </p>
+                        </div>
 
-                        <!-- Form 2: Kick only 1 selected player -->
-                        <form method="POST" class="bg-slate-900 p-4 rounded-lg border border-slate-800 space-y-3 flex flex-col justify-between">
-                            <input type="hidden" name="action" value="judge_kick_one_player">
-                            <div class="space-y-1.5">
-                                <label class="block text-xs font-bold text-slate-300">
-                                    <?php echo __('judge_select_player_to_kick'); ?>
-                                </label>
-                                <select name="player_id" required class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg p-2.5 focus:outline-none focus:border-indigo-500">
-                                    <option value=""><?php echo __('make_selection'); ?></option>
-                                    <?php foreach ($db['players'] as $p): ?>
-                                        <?php if ($p['status'] === 'alive'): ?>
-                                            <option value="<?php echo htmlspecialchars($p['id']); ?>">
-                                                <?php echo htmlspecialchars($p['name']); ?> (<?php echo get_role_label($p['role']); ?>)
-                                            </option>
-                                        <?php endif; ?>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 rounded-lg uppercase tracking-wider transition shadow">
-                                <?php echo __('judge_kick_one_btn'); ?>
-                            </button>
-                        </form>
+                        <div class="bg-indigo-950/20 border border-indigo-900/40 p-3.5 rounded-lg space-y-1 text-xs">
+                            <p class="font-black text-indigo-300 uppercase tracking-wide">
+                                <?php echo get_current_lang() === 'ku' ? 'ڕێنمایێن بڕیارێن دادوەری (بۆ مێهڤانداری):' : (get_current_lang() === 'ar' ? 'تعليمات قرارات القاضي (للمضيف):' : 'Judge Decision Guidelines (For Host):'); ?>
+                            </p>
+                            <ul class="list-disc list-inside text-slate-300 space-y-1.5 mt-2 leading-relaxed">
+                                <li>
+                                    <strong><?php echo get_current_lang() === 'ku' ? 'هەڵوەشاندنا هەمی دەنگدانان:' : (get_current_lang() === 'ar' ? 'إلغاء جميع الأصوات:' : 'Cancel All Votings:'); ?></strong> 
+                                    <?php echo get_current_lang() === 'ku' ? 'مێهڤاندار دشێت هەمی دەنگدانان هەڵبوەشینیت و چ یاریزان ئەڤرۆ دەرنەکەڤن.' : (get_current_lang() === 'ar' ? 'يمكن للمضيف إلغاء جميع الأصوات لليوم حتى لا يغادر أحد.' : 'The host can manually cancel all votes for the day so no player is kicked.'); ?>
+                                </li>
+                                <li>
+                                    <strong><?php echo get_current_lang() === 'ku' ? 'دەرئێخستنا یەک یاریزان تەنێ:' : (get_current_lang() === 'ar' ? 'طرد لاعب واحد فقط:' : 'Kick Only One Player:'); ?></strong> 
+                                    <?php echo get_current_lang() === 'ku' ? 'دادوەر دشێت بڕیار بدەت کو بتنێ یاریزانەکێ دیاریکری دەرکەڤیت و یێن دی بهێنە پاراستن.' : (get_current_lang() === 'ar' ? 'يمكن للقاضي اختيار طرد لاعب محدد فقط من الذين تم التصويت عليهم، وإبقاء الآخرين.' : 'The judge can choose to kick exactly one voted player, saving everyone else.'); ?>
+                                </li>
+                            </ul>
+                            <p class="text-[10px] text-slate-400 italic mt-2.5">
+                                ℹ️ <?php echo get_current_lang() === 'ku' ? 'ژبەرکو بریارێن دەنگدانێ یێن دادوەری ب دەستی دهێنە کرن، مێهڤاندار دێ ب دەستی یاریزانان دەرکەتنا وان یان ژین د کۆنترۆلا یاریزانان دا گۆڕیت.' : (get_current_lang() === 'ar' ? 'بما أن قرارات القاضي والتصويت تتم يدوياً، سيقوم المضيف بتغيير حالة اللاعبين يدوياً في لوحة الإدارة.' : 'Since the Judge’s voting decisions are handled manually, the host will manually toggle player statuses in the player management table.'); ?>
+                            </p>
+                        </div>
                     </div>
                 </div>
             <?php endif; ?>
