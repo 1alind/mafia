@@ -55,10 +55,11 @@ return [
     'select_grave_keeper_action' => 'Select Grave Keeper\'s action for tonight:',
     'gk_already_decided' => 'Grave Keeper has already made a decision for tonight.',
     'gk_decision_recorded' => 'Decision recorded for tonight.',
+    'select_deceiver_target' => 'Select target for Deceiver to switch role/disguise for Investigator (cannot select Mafia Boss):',
     'select_mafia_boss_target' => 'Select target for Mafia to eliminate tonight:',
     'select_mafia_doc_target' => 'Select fellow Mafia member to protect:',
     'select_police_target' => 'Select player to shoot (cannot select self):',
-    'select_town_doc_target' => 'Select player to protect (Self-heals used: %s/2):',
+    'select_town_doc_target' => 'Select player to protect from bullets (Self-heals used: %s/2):',
     'select_investigator_target' => 'Select player to investigate (cannot select self):',
     'select_target' => 'Select target:',
     'make_selection' => '-- Make a Selection --',
@@ -70,6 +71,17 @@ return [
     'cancel' => '✕ Cancel',
     'selected' => 'Selected:',
     'investigator_result' => '🔍 Investigator Result:',
+
+    // Judge Daytime Controls
+    'judge_panel_title' => '⚖️ Judge Daytime Controls & Voting Decisions',
+    'judge_cancel_all_btn' => '🚫 Judge Rule: Cancel All Votings Today',
+    'judge_kick_one_btn' => '⚖️ Judge Rule: Kick Only Selected Player',
+    'judge_select_player_to_kick' => 'Select 1 voted player to kick (others stay in game):',
+
+    // Suicidal Bomb Daytime Controls
+    'suicidal_bomb_panel_title' => '💣 Suicidal Bomb Revenge Trigger',
+    'suicidal_bomb_choose_target' => 'Suicidal Bomb was voted out! Select a player to be kicked out in revenge:',
+    'suicidal_bomb_explode_btn' => '💣 Trigger Suicidal Bomb Explosion',
 
     // Daybreak Morning Report
     'day_morning_report' => 'Day %d Morning Report (Host Only)',
@@ -138,6 +150,7 @@ return [
     'role_judge' => 'Judge',
     'role_grave_keeper' => 'Grave Keeper',
     'role_mirhas' => 'Mirhas',
+    'role_suicidal_bomb' => 'Suicidal Bomb',
     'role_citizen' => 'Citizen',
     'role_pending' => 'Pending',
 
@@ -146,16 +159,17 @@ return [
     'roles_guide_subheader' => 'Learn the abilities, team objectives, and night actions for each role.',
     'faction' => 'Faction',
 
-    'desc_mafia_boss' => 'Leader of the Mafia. Each night, chooses a target to eliminate. Appears as Mafia to the Investigator.',
+    'desc_mafia_boss' => 'Leader of the Mafia. Each night, chooses a target to eliminate. Always appears as a Citizen when checked by the Investigator.',
     'desc_mafia_doctor' => 'Member of the Mafia. Each night, can protect one fellow Mafia member from police or outside attacks.',
-    'desc_deceiver' => 'Member of the Mafia. Appears innocent as a regular Citizen if investigated by the Investigator.',
+    'desc_deceiver' => 'Member of the Mafia. Each night, can switch the perceived role of any player (except Mafia Boss), directly altering the Investigator\'s results.',
     'desc_regular_mafia' => 'Standard Mafia operative. Assists the Boss in deciding night kills and voting during the day.',
-    'desc_police' => 'Citizens\' armed defender. Each night, can choose one suspect player to shoot and eliminate.',
-    'desc_town_doctor' => 'Town healer. Protects one player each night from elimination. Can heal themselves up to 2 times per game.',
+    'desc_police' => 'Citizens\' armed defender. Each night, can shoot a suspect player. WARNING: If Police shoots an innocent Citizen, the Citizen survives (even without Doctor protection), but the Police is immediately kicked out of the game!',
+    'desc_town_doctor' => 'Town healer. Protects one player each night specifically from bullet attacks (Mafia or Police shots). Can heal self up to 2 times per game.',
     'desc_investigator' => 'Town detective. Investigates one player each night to learn if they are Mafia or Citizen.',
-    'desc_judge' => 'Key town leader. Holds influential weight during daytime discussions and voting.',
+    'desc_judge' => 'Key town authority. During daytime voting, Judge can decide to apply the vote, cancel all votings, or select only one voted person to kick while keeping others in game.',
     'desc_grave_keeper' => 'Grave Keeper. Has 2 charges to decide if dead roles are revealed at night. If YES, host skips calling dead roles.',
     'desc_mirhas' => 'Tough survivor. If targeted at night, survives and stays alive for 1 additional day before departing.',
+    'desc_suicidal_bomb' => 'Volatile Citizen role. If shot by the Mafia at night (and not saved by Doctor), both the Suicidal Bomb and the Mafia shooter (Boss) are eliminated! If voted out during daytime, he can freely choose any player to be kicked out with him.',
     'desc_citizen' => 'Innocent town member. Uses deduction, logic, and voting during daytime to identify and eliminate the Mafia.',
 
     // Win teams

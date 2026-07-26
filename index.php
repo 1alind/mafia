@@ -243,6 +243,8 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                             echo $gk_acted_tonight ? __('gk_already_decided') : __('select_grave_keeper_action');
                                         } elseif ($role === 'Mafia Boss') {
                                             echo __('select_mafia_boss_target');
+                                        } elseif ($role === 'Deceiver') {
+                                            echo __('select_deceiver_target');
                                         } elseif ($role === 'Mafia Doctor') {
                                             echo __('select_mafia_doc_target');
                                         } elseif ($role === 'Police') {
@@ -410,6 +412,92 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
+            <!-- JUDGE DAYTIME CONTROLS -->
+            <?php if ($db['phase'] === 'day' && empty($db['winner'])): ?>
+                <div class="bg-indigo-950/60 border-2 border-indigo-500/60 p-5 rounded-xl space-y-4 shadow-xl">
+                    <div class="flex items-center justify-between border-b border-indigo-900/80 pb-3">
+                        <h3 class="text-sm font-black uppercase text-indigo-300 tracking-wider">
+                            <?php echo __('judge_panel_title'); ?>
+                        </h3>
+                        <span class="bg-indigo-900/80 border border-indigo-700 text-indigo-200 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">
+                            ⚖️ <?php echo get_role_label('Judge'); ?>
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Form 1: Cancel all votings -->
+                        <form method="POST" class="bg-slate-900 p-4 rounded-lg border border-slate-800 space-y-3 flex flex-col justify-between">
+                            <input type="hidden" name="action" value="judge_cancel_votings">
+                            <p class="text-xs text-slate-300 leading-relaxed">
+                                <?php echo __('desc_judge'); ?>
+                            </p>
+                            <button type="submit" class="w-full bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs py-2.5 rounded-lg uppercase tracking-wider transition shadow">
+                                <?php echo __('judge_cancel_all_btn'); ?>
+                            </button>
+                        </form>
+
+                        <!-- Form 2: Kick only 1 selected player -->
+                        <form method="POST" class="bg-slate-900 p-4 rounded-lg border border-slate-800 space-y-3 flex flex-col justify-between">
+                            <input type="hidden" name="action" value="judge_kick_one_player">
+                            <div class="space-y-1.5">
+                                <label class="block text-xs font-bold text-slate-300">
+                                    <?php echo __('judge_select_player_to_kick'); ?>
+                                </label>
+                                <select name="player_id" required class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg p-2.5 focus:outline-none focus:border-indigo-500">
+                                    <option value=""><?php echo __('make_selection'); ?></option>
+                                    <?php foreach ($db['players'] as $p): ?>
+                                        <?php if ($p['status'] === 'alive'): ?>
+                                            <option value="<?php echo htmlspecialchars($p['id']); ?>">
+                                                <?php echo htmlspecialchars($p['name']); ?> (<?php echo get_role_label($p['role']); ?>)
+                                            </option>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 rounded-lg uppercase tracking-wider transition shadow">
+                                <?php echo __('judge_kick_one_btn'); ?>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- SUICIDAL BOMB REVENGE CONTROL -->
+            <?php if ($db['phase'] === 'day' && !empty($db['suicidal_bomb_triggered_by']) && empty($db['winner'])): ?>
+                <div class="bg-rose-950/80 border-2 border-rose-500/80 p-5 rounded-xl space-y-4 shadow-xl">
+                    <div class="flex items-center justify-between border-b border-rose-900/80 pb-3">
+                        <h3 class="text-sm font-black uppercase text-rose-300 tracking-wider flex items-center gap-2">
+                            <span>💣</span> <?php echo __('suicidal_bomb_panel_title'); ?>
+                        </h3>
+                        <span class="bg-rose-900/80 border border-rose-700 text-rose-200 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">
+                            💣 <?php echo get_role_label('Suicidal Bomb'); ?>: <?php echo htmlspecialchars($db['suicidal_bomb_triggered_by']); ?>
+                        </span>
+                    </div>
+
+                    <form method="POST" class="bg-slate-900 p-4 rounded-lg border border-slate-800 space-y-3">
+                        <input type="hidden" name="action" value="suicidal_bomb_explode">
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-bold text-rose-200">
+                                <?php echo __('suicidal_bomb_choose_target'); ?>
+                            </label>
+                            <select name="target_player_id" required class="w-full bg-slate-950 border border-rose-700/80 text-slate-200 text-xs rounded-lg p-2.5 focus:outline-none focus:border-rose-500">
+                                <option value=""><?php echo __('make_selection'); ?></option>
+                                <?php foreach ($db['players'] as $p): ?>
+                                    <?php if ($p['status'] === 'alive'): ?>
+                                        <option value="<?php echo htmlspecialchars($p['id']); ?>">
+                                            <?php echo htmlspecialchars($p['name']); ?> (<?php echo htmlspecialchars(get_role_label($p['role'])); ?>)
+                                        </option>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-2.5 rounded-lg uppercase tracking-wider transition shadow">
+                            <?php echo __('suicidal_bomb_explode_btn'); ?>
+                        </button>
+                    </form>
                 </div>
             <?php endif; ?>
 

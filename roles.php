@@ -15,6 +15,7 @@ $citizen_roles = [
     'Judge' => ['icon' => '⚖️', 'desc' => 'desc_judge'],
     'Grave Keeper' => ['icon' => '🪦', 'desc' => 'desc_grave_keeper'],
     'Mirhas' => ['icon' => '🛡️', 'desc' => 'desc_mirhas'],
+    'Suicidal Bomb' => ['icon' => '💣', 'desc' => 'desc_suicidal_bomb'],
     'Citizen' => ['icon' => '👤', 'desc' => 'desc_citizen'],
 ];
 

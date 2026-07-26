@@ -30,6 +30,7 @@ $all_game_roles = [
     'Judge',
     'Grave Keeper',
     'Mirhas',
+    'Suicidal Bomb',
     'Citizen',
     'Pending'
 ];

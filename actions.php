@@ -50,19 +50,37 @@ if (isset($_GET['ajax']) || (isset($_GET['action']) && $_GET['action'] === 'get_
 }
 
 function evaluate_investigation($target_name, $db) {
+    $target_role = null;
     foreach ($db['players'] as $p) {
         if ($p['name'] === $target_name) {
-            $role = $p['role'] ?? '';
-            if (in_array($role, ['Mafia Boss', 'Mafia Doctor', 'Regular Mafia'])) {
-                return 'Mafia';
-            }
-            if ($role === 'Deceiver') {
-                return 'Citizen'; // Deceiver appears innocent to Investigator
-            }
-            return 'Citizen';
+            $target_role = $p['role'] ?? '';
+            break;
         }
     }
-    return 'Citizen';
+
+    if (!$target_role) return 'Citizen';
+
+    // Base identity: Mafia Boss & Deceiver appear as Citizen
+    if ($target_role === 'Mafia Boss') {
+        $res = 'Citizen';
+    } elseif ($target_role === 'Deceiver') {
+        $res = 'Citizen';
+    } elseif (in_array($target_role, ['Mafia Doctor', 'Regular Mafia'])) {
+        $res = 'Mafia';
+    } else {
+        $res = 'Citizen';
+    }
+
+    // Deceiver's night action effect on investigator results:
+    // Deceiver can switch perceived role of any player EXCLUDING Mafia Boss
+    $deceiver_target = $db['night_actions']['Deceiver'] ?? null;
+    if ($deceiver_target && $deceiver_target === $target_name) {
+        if ($target_role !== 'Mafia Boss') {
+            $res = ($res === 'Mafia') ? 'Citizen' : 'Mafia';
+        }
+    }
+
+    return $res;
 }
 
 function check_win_conditions(&$db) {
@@ -171,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                 }
 
-                $citizen_specials = ['Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Judge', 'Mirhas'];
+                $citizen_specials = ['Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Judge', 'Mirhas', 'Suicidal Bomb'];
                 shuffle($citizen_specials);
 
                 while (count($deck) < $total_players && !empty($citizen_specials)) {
@@ -219,6 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $db['grave_keeper_revealed_roles'] = false;
             $db['grave_keeper_acted_tonight'] = false;
             $db['town_doctor_self_protect_count'] = 0;
+            unset($db['suicidal_bomb_triggered_by']);
             $db['reset_token'] = uniqid('rst_', true);
             $db['logs'][] = "Game reset for a Rematch.";
             save_db($db);
@@ -272,11 +291,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 unset($db['night_actions'][$role]);
             }
 
-            if ($role === 'Investigator' && $target_name) {
-                $eval_res = evaluate_investigation($target_name, $db);
+            // Always recalculate investigation result if Investigator target is selected
+            $investigator_target = $db['night_actions']['Investigator'] ?? null;
+            if ($investigator_target) {
+                $eval_res = evaluate_investigation($investigator_target, $db);
                 $db['investigation_results'] = [
-                    ['target' => $target_name, 'result' => $eval_res]
+                    ['target' => $investigator_target, 'result' => $eval_res]
                 ];
+            } else {
+                $db['investigation_results'] = [];
             }
 
             save_db($db);
@@ -336,17 +359,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         $saved_names[] = $mafia_target;
                     } else {
                         $killed_names[] = $mafia_target;
+
+                        // Check if Suicidal Bomb was shot by Mafia without Doctor protection
+                        $mafia_target_role = null;
+                        foreach ($db['players'] as $p) {
+                            if ($p['name'] === $mafia_target) {
+                                $mafia_target_role = $p['role'] ?? '';
+                                break;
+                            }
+                        }
+
+                        if ($mafia_target_role === 'Suicidal Bomb') {
+                            // Find active Mafia shooter (Mafia Boss or active Mafia)
+                            $mafia_shooter = null;
+                            foreach ($db['players'] as $p) {
+                                if (($p['role'] ?? '') === 'Mafia Boss' && $p['status'] === 'alive') {
+                                    $mafia_shooter = $p['name'];
+                                    break;
+                                }
+                            }
+                            if (!$mafia_shooter) {
+                                foreach ($db['players'] as $p) {
+                                    if (in_array($p['role'] ?? '', ['Mafia Doctor', 'Deceiver', 'Regular Mafia']) && $p['status'] === 'alive') {
+                                        $mafia_shooter = $p['name'];
+                                        break;
+                                    }
+                                }
+                            }
+                            if ($mafia_shooter && !in_array($mafia_shooter, $killed_names)) {
+                                $killed_names[] = $mafia_shooter;
+                                $db['logs'][] = "💣 Suicidal Bomb ({$mafia_target}) was shot by Mafia! The bomb exploded, eliminating both the Suicidal Bomb and the Mafia shooter ({$mafia_shooter})!";
+                            }
+                        }
                     }
                 }
 
                 if ($police_target) {
-                    if ($police_target === $town_doc_target || $police_target === $mafia_doc_target) {
-                        if (!in_array($police_target, $saved_names)) {
-                            $saved_names[] = $police_target;
+                    $police_player_name = null;
+                    foreach ($db['players'] as $p) {
+                        if (($p['role'] ?? '') === 'Police' && $p['status'] === 'alive') {
+                            $police_player_name = $p['name'];
+                            break;
+                        }
+                    }
+
+                    $police_target_role = null;
+                    foreach ($db['players'] as $p) {
+                        if ($p['name'] === $police_target) {
+                            $police_target_role = $p['role'] ?? '';
+                            break;
+                        }
+                    }
+
+                    $is_mafia_target = in_array($police_target_role, ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']);
+
+                    // If Police targets an innocent Citizen, Police is kicked out and Citizen stays alive
+                    if (!$is_mafia_target) {
+                        if ($police_player_name && !in_array($police_player_name, $killed_names)) {
+                            $killed_names[] = $police_player_name;
+                            $db['logs'][] = "⚠️ Police ({$police_player_name}) targeted an innocent Citizen ({$police_target}) and was kicked out of the game! The Citizen survives.";
                         }
                     } else {
-                        if (!in_array($police_target, $killed_names)) {
-                            $killed_names[] = $police_target;
+                        // Bullet shot on Mafia target
+                        if ($police_target === $town_doc_target || $police_target === $mafia_doc_target) {
+                            if (!in_array($police_target, $saved_names)) {
+                                $saved_names[] = $police_target;
+                            }
+                        } else {
+                            if (!in_array($police_target, $killed_names)) {
+                                $killed_names[] = $police_target;
+                            }
                         }
                     }
                 }
@@ -438,11 +520,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 if ($p['id'] === $pid) {
                     $p['status'] = 'dead';
                     $db['logs'][] = "Player '{$p['name']}' was voted out/kicked during Day {$db['day']}.";
+                    if (($p['role'] ?? '') === 'Suicidal Bomb') {
+                        $db['suicidal_bomb_triggered_by'] = $p['name'];
+                        $db['logs'][] = "💣 Suicidal Bomb ('{$p['name']}') was voted out! Suicidal Bomb can now choose a player to be kicked out in revenge!";
+                    }
                     break;
                 }
             }
             check_win_conditions($db);
             save_db($db);
+            header("Location: index.php");
+            exit;
+        }
+
+        if ($action === 'judge_cancel_votings') {
+            $db['logs'][] = "⚖️ Judge cancelled all daytime votings for Day {$db['day']}. No players were kicked today.";
+            save_db($db);
+            header("Location: index.php");
+            exit;
+        }
+
+        if ($action === 'judge_kick_one_player') {
+            $pid = $_POST['player_id'] ?? '';
+            if ($pid !== '') {
+                foreach ($db['players'] as &$p) {
+                    if ($p['id'] === $pid) {
+                        $p['status'] = 'dead';
+                        $db['logs'][] = "⚖️ Judge ruled to kick only '{$p['name']}' and keep all other players in the game.";
+                        if (($p['role'] ?? '') === 'Suicidal Bomb') {
+                            $db['suicidal_bomb_triggered_by'] = $p['name'];
+                            $db['logs'][] = "💣 Suicidal Bomb ('{$p['name']}') was voted out! Suicidal Bomb can now choose a player to be kicked out in revenge!";
+                        }
+                        break;
+                    }
+                }
+                check_win_conditions($db);
+                save_db($db);
+            }
+            header("Location: index.php");
+            exit;
+        }
+
+        if ($action === 'suicidal_bomb_explode') {
+            $pid = $_POST['target_player_id'] ?? '';
+            if ($pid !== '') {
+                $target_name = null;
+                foreach ($db['players'] as &$p) {
+                    if ($p['id'] === $pid && $p['status'] === 'alive') {
+                        $p['status'] = 'dead';
+                        $target_name = $p['name'];
+                        break;
+                    }
+                }
+                $triggered_by = $db['suicidal_bomb_triggered_by'] ?? 'Suicidal Bomb';
+                if ($target_name) {
+                    $db['logs'][] = "💥 Suicidal Bomb ({$triggered_by}) triggered revenge explosion and eliminated '{$target_name}'!";
+                }
+                unset($db['suicidal_bomb_triggered_by']);
+                check_win_conditions($db);
+                save_db($db);
+            }
             header("Location: index.php");
             exit;
         }

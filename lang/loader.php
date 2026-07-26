@@ -63,6 +63,7 @@ function get_role_label($role) {
         'Judge' => 'role_judge',
         'Grave Keeper' => 'role_grave_keeper',
         'Mirhas' => 'role_mirhas',
+        'Suicidal Bomb' => 'role_suicidal_bomb',
         'Citizen' => 'role_citizen',
         'Pending' => 'role_pending',
     ];
