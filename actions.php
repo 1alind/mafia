@@ -12,6 +12,7 @@ function get_db() {
         $db = [
             'reset_token' => uniqid('rst_', true),
             'host_browser_id' => null,
+            'host_password' => '1234',
             'phase' => 'setup',
             'day' => 1,
             'players' => [],
@@ -27,6 +28,10 @@ function get_db() {
             'investigation_results' => [],
             'delayed_departure' => []
         ];
+        save_db($db);
+    }
+    if (empty($db['host_password'])) {
+        $db['host_password'] = '1234';
         save_db($db);
     }
     return $db;
@@ -91,16 +96,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $action = $_POST['action'];
 
     if ($action === 'claim_host') {
-        if (empty($db['host_browser_id'])) {
+        $input_pass = trim($_POST['host_password'] ?? '');
+        $required_pass = $db['host_password'] ?? '1234';
+        
+        if ($input_pass === $required_pass) {
             $db['host_browser_id'] = $my_browser_id;
             $db['logs'][] = "Host claimed by browser {$my_browser_id}.";
+            unset($_SESSION['host_error']);
             save_db($db);
+        } else {
+            $_SESSION['host_error'] = __('incorrect_host_password');
         }
         header("Location: index.php");
         exit;
     }
 
     if ($action === 'join_game') {
+        if (empty($db['host_browser_id'])) {
+            $_SESSION['join_error'] = __('no_host_error_desc');
+            header("Location: player.php");
+            exit;
+        }
+
         $name = trim($_POST['player_name'] ?? '');
         if ($name !== '') {
             $exists = false;
@@ -210,9 +227,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         if ($action === 'hard_reset') {
+            $existing_pass = $db['host_password'] ?? '1234';
             $db = [
                 'reset_token' => uniqid('rst_', true),
                 'host_browser_id' => null,
+                'host_password' => $existing_pass,
                 'phase' => 'setup',
                 'day' => 1,
                 'players' => [],

@@ -9,7 +9,20 @@ return [
     // App Titles & Navigation
     'app_title_host' => 'Host Control Panel - Mafia Game',
     'app_title_player' => 'Player Portal - Mafia Game',
+    'app_title_roles' => 'Game Roles Guide - Mafia Game',
     'language' => 'Language',
+    'view_roles_guide' => '📜 Roles Guide',
+    'back_to_game' => '⬅️ Back to Game',
+
+    // Host Password & Security
+    'host_password_label' => 'Host Security Password',
+    'enter_host_password' => 'Enter Host Password...',
+    'claim_host_btn' => 'Verify & Claim Host',
+    'incorrect_host_password' => '❌ Incorrect Host Password. Access denied.',
+    'default_password_hint' => 'Default Host Password is: 1234',
+    'no_host_error_title' => '❌ Host Not Active',
+    'no_host_error_desc' => 'The game session has no active Host. A Host must log in on the Host Panel before players can join or view the game.',
+    'claim_host_now' => '🔑 Claim Host Panel',
 
     // Host Header & Controls
     'host_panel_title' => '🔪 Mafia Host Control Panel',
@@ -49,8 +62,8 @@ return [
     'select_investigator_target' => 'Select player to investigate (cannot select self):',
     'select_target' => 'Select target:',
     'make_selection' => '-- Make a Selection --',
-    'gk_option_yes' => 'نعم - Reveal eliminated roles (Yes)',
-    'gk_option_no' => 'لا - Do not reveal (No)',
+    'gk_option_yes' => 'Yes - Reveal eliminated roles',
+    'gk_option_no' => 'No - Do not reveal',
     'confirm_decision' => 'Confirm Decision',
     'none_no_selection' => '-- None / No Selection --',
     'confirm' => 'Confirm',
@@ -92,7 +105,7 @@ return [
     'vote_kick_daytime' => 'Vote / Kick Daytime',
     'toggle_alive_dead' => 'Toggle Alive/Dead',
 
-    // Phase Management & Activity Logs
+    // Phase Management
     'phase_management' => 'Phase Management',
     'current_phase' => 'Current Phase',
     'game_over' => 'GAME OVER',
@@ -101,7 +114,6 @@ return [
     'phase_day' => 'Day',
     'go_to_next_phase' => 'Go to Next Phase ➔',
     'unlock_phase_notice' => '⚠️ Distribute roles above to unlock phase transitions',
-    'activity_log' => 'Activity Log',
 
     // Player Portal
     'player_portal_title' => '👥 Player Portal',
@@ -128,6 +140,23 @@ return [
     'role_mirhas' => 'Mirhas',
     'role_citizen' => 'Citizen',
     'role_pending' => 'Pending',
+
+    // Roles Guide Descriptions
+    'roles_guide_header' => '📜 Roles & Abilities Guide',
+    'roles_guide_subheader' => 'Learn the abilities, team objectives, and night actions for each role.',
+    'faction' => 'Faction',
+
+    'desc_mafia_boss' => 'Leader of the Mafia. Each night, chooses a target to eliminate. Appears as Mafia to the Investigator.',
+    'desc_mafia_doctor' => 'Member of the Mafia. Each night, can protect one fellow Mafia member from police or outside attacks.',
+    'desc_deceiver' => 'Member of the Mafia. Appears innocent as a regular Citizen if investigated by the Investigator.',
+    'desc_regular_mafia' => 'Standard Mafia operative. Assists the Boss in deciding night kills and voting during the day.',
+    'desc_police' => 'Citizens\' armed defender. Each night, can choose one suspect player to shoot and eliminate.',
+    'desc_town_doctor' => 'Town healer. Protects one player each night from elimination. Can heal themselves up to 2 times per game.',
+    'desc_investigator' => 'Town detective. Investigates one player each night to learn if they are Mafia or Citizen.',
+    'desc_judge' => 'Key town leader. Holds influential weight during daytime discussions and voting.',
+    'desc_grave_keeper' => 'Grave Keeper. Has 2 charges to decide if dead roles are revealed at night. If YES, host skips calling dead roles.',
+    'desc_mirhas' => 'Tough survivor. If targeted at night, survives and stays alive for 1 additional day before departing.',
+    'desc_citizen' => 'Innocent town member. Uses deduction, logic, and voting during daytime to identify and eliminate the Mafia.',
 
     // Win teams
     'team_citizens' => 'Citizens',

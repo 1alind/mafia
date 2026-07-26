@@ -44,12 +44,15 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
     <div class="max-w-6xl mx-auto space-y-6">
 
         <!-- Language Selector Header Bar -->
-        <div class="flex justify-between items-center bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-lg">
+        <div class="flex flex-col sm:flex-row justify-between items-center bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-lg gap-3">
             <div class="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-wider">
                 🌐 <?php echo __('language'); ?>:
+                <?php render_language_selector(); ?>
             </div>
             <div>
-                <?php render_language_selector(); ?>
+                <a href="roles.php" class="bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/80 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase transition flex items-center gap-1.5 shadow">
+                    <?php echo __('view_roles_guide'); ?>
+                </a>
             </div>
         </div>
 
@@ -81,14 +84,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                 <p class="text-xs text-slate-400 mt-1"><?php echo __('host_panel_subtitle'); ?></p>
             </div>
             
-            <?php if ($needs_host_claim): ?>
-                <form method="POST">
-                    <input type="hidden" name="action" value="claim_host">
-                    <button type="submit" class="bg-rose-600 hover:bg-rose-700 px-6 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider shadow transition">
-                        <?php echo __('claim_host_role'); ?>
-                    </button>
-                </form>
-            <?php else: ?>
+            <?php if (!$needs_host_claim && $is_host): ?>
                 <div class="flex items-center gap-3 flex-wrap justify-end">
                     <?php if ($db['roles_shared'] ?? false): ?>
                         <form method="POST" onsubmit="return confirm('<?php echo htmlspecialchars(__('confirm_rematch'), ENT_QUOTES); ?>');">
@@ -108,6 +104,48 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                 </div>
             <?php endif; ?>
         </header>
+
+        <?php if ($needs_host_claim): ?>
+            <!-- Host Claim Password Form -->
+            <div class="bg-slate-900 border-2 border-rose-900/80 p-8 rounded-2xl max-w-md mx-auto text-center space-y-5 shadow-2xl">
+                <div class="text-4xl">🔑</div>
+                <div class="space-y-1">
+                    <h2 class="text-xl font-black text-rose-400 uppercase tracking-wider">
+                        <?php echo __('claim_host_role'); ?>
+                    </h2>
+                    <p class="text-xs text-slate-400">
+                        <?php echo __('host_password_label'); ?>
+                    </p>
+                </div>
+
+                <?php if (!empty($_SESSION['host_error'])): ?>
+                    <div class="bg-rose-950/80 border border-rose-800 text-rose-300 p-3 rounded-lg text-xs font-bold">
+                        <?php 
+                            echo htmlspecialchars($_SESSION['host_error']); 
+                            unset($_SESSION['host_error']);
+                        ?>
+                    </div>
+                <?php endif; ?>
+
+                <form method="POST" class="space-y-4">
+                    <input type="hidden" name="action" value="claim_host">
+                    <input 
+                        type="password" 
+                        name="host_password" 
+                        required 
+                        placeholder="<?php echo htmlspecialchars(__('enter_host_password')); ?>"
+                        class="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl px-4 py-3 text-center text-sm font-bold text-slate-100 placeholder-slate-500 outline-none transition"
+                    >
+                    <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-black py-3 rounded-xl text-xs uppercase tracking-widest shadow-lg transition">
+                        <?php echo __('claim_host_btn'); ?>
+                    </button>
+                </form>
+
+                <p class="text-[11px] text-slate-500 italic">
+                    💡 <?php echo __('default_password_hint'); ?>
+                </p>
+            </div>
+        <?php endif; ?>
 
         <?php if (!$needs_host_claim && $is_host): ?>
             
@@ -485,7 +523,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                     </div>
                 </div>
 
-                <!-- Game Phase & Logs Sidebar -->
+                <!-- Game Phase Sidebar -->
                 <div class="space-y-6">
                     <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4 shadow-lg">
                         <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400"><?php echo __('phase_management'); ?></h2>
@@ -510,16 +548,6 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                 </div>
                             <?php endif; ?>
                         <?php endif; ?>
-                    </div>
-
-                    <!-- Activity Log -->
-                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-3 shadow-lg">
-                        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400"><?php echo __('activity_log'); ?></h2>
-                        <div class="bg-slate-950 border border-slate-800 p-3 rounded-lg h-48 overflow-y-auto text-xs space-y-2 font-mono text-slate-300 text-left" id="logs-container">
-                            <?php foreach (array_reverse($db['logs']) as $log): ?>
-                                <div class="border-b border-slate-900 pb-1"><?php echo htmlspecialchars($log); ?></div>
-                            <?php endforeach; ?>
-                        </div>
                     </div>
                 </div>
 

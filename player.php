@@ -54,19 +54,40 @@ foreach ($all_game_roles as $r_name) {
 </head>
 <body class="bg-slate-900 text-white min-h-screen p-4 md:p-6 font-sans flex flex-col items-center justify-center space-y-4">
     
-    <!-- Language Selector Header Bar -->
-    <div class="max-w-md w-full flex justify-between items-center bg-slate-800 border border-slate-700 p-3 rounded-xl shadow-lg">
+    <!-- Language Selector & Navigation Header Bar -->
+    <div class="max-w-md w-full flex flex-col sm:flex-row justify-between items-center bg-slate-800 border border-slate-700 p-3 rounded-xl shadow-lg gap-3">
         <div class="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-wider">
             🌐 <?php echo __('language'); ?>:
+            <?php render_language_selector(); ?>
         </div>
         <div>
-            <?php render_language_selector(); ?>
+            <a href="roles.php" class="bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/80 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase transition flex items-center gap-1.5 shadow">
+                <?php echo __('view_roles_guide'); ?>
+            </a>
         </div>
     </div>
 
     <div class="max-w-md w-full bg-slate-800 border border-slate-700 p-8 rounded-xl text-center space-y-6 shadow-2xl">
         <h1 class="text-2xl font-black text-sky-400 uppercase"><?php echo __('player_portal_title'); ?></h1>
         
+        <?php if (empty($db['host_browser_id'])): ?>
+            <!-- No Host Error Banner -->
+            <div class="bg-rose-950/80 border-2 border-rose-800 p-6 rounded-xl space-y-4 shadow-xl">
+                <div class="text-3xl">🛑</div>
+                <div class="space-y-2">
+                    <h2 class="text-lg font-black text-rose-400 uppercase tracking-wider">
+                        <?php echo __('no_host_error_title'); ?>
+                    </h2>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        <?php echo __('no_host_error_desc'); ?>
+                    </p>
+                </div>
+                <a href="index.php" class="inline-block w-full bg-rose-600 hover:bg-rose-700 text-white font-black py-3 rounded-xl text-xs uppercase tracking-widest shadow transition">
+                    <?php echo __('claim_host_now'); ?>
+                </a>
+            </div>
+        <?php else: ?>
+
         <?php if (!empty($_SESSION['join_error'])): ?>
             <div class="bg-rose-500/20 border border-rose-500 text-rose-300 text-xs p-3 rounded font-bold">
                 <?php echo htmlspecialchars($_SESSION['join_error']); unset($_SESSION['join_error']); ?>
@@ -210,6 +231,7 @@ foreach ($all_game_roles as $r_name) {
                     pollTimer = setInterval(pollPlayer, 3000);
                 }
             </script>
+        <?php endif; ?>
         <?php endif; ?>
     </div>
 </body>
