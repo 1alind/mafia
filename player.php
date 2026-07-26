@@ -17,19 +17,55 @@ if ($player_id) {
         }
     }
 }
+
+// Build role map for JS translation
+$all_game_roles = [
+    'Mafia Boss',
+    'Mafia Doctor',
+    'Deceiver',
+    'Regular Mafia',
+    'Police',
+    'Town Doctor',
+    'Investigator',
+    'Judge',
+    'Grave Keeper',
+    'Mirhas',
+    'Citizen',
+    'Pending'
+];
+
+$role_i18n_map = [];
+foreach ($all_game_roles as $r_name) {
+    $role_i18n_map[$r_name] = get_role_label($r_name);
+}
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?php echo get_current_lang(); ?>" dir="<?php echo get_current_dir(); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mafia - Player Portal</title>
+    <title><?php echo __('app_title_player'); ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+    </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen p-6 font-sans flex items-center justify-center">
+<body class="bg-slate-900 text-white min-h-screen p-4 md:p-6 font-sans flex flex-col items-center justify-center space-y-4">
     
+    <!-- Language Selector Header Bar -->
+    <div class="max-w-md w-full flex justify-between items-center bg-slate-800 border border-slate-700 p-3 rounded-xl shadow-lg">
+        <div class="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-wider">
+            🌐 <?php echo __('language'); ?>:
+        </div>
+        <div>
+            <?php render_language_selector(); ?>
+        </div>
+    </div>
+
     <div class="max-w-md w-full bg-slate-800 border border-slate-700 p-8 rounded-xl text-center space-y-6 shadow-2xl">
-        <h1 class="text-2xl font-black text-sky-400 uppercase">👥 Player Portal</h1>
+        <h1 class="text-2xl font-black text-sky-400 uppercase"><?php echo __('player_portal_title'); ?></h1>
         
         <?php if (!empty($_SESSION['join_error'])): ?>
             <div class="bg-rose-500/20 border border-rose-500 text-rose-300 text-xs p-3 rounded font-bold">
@@ -38,29 +74,40 @@ if ($player_id) {
         <?php endif; ?>
 
         <?php if (!$my_player): ?>
-            <p class="text-xs text-slate-400">Enter your name to join the lobby.</p>
+            <p class="text-xs text-slate-400"><?php echo __('enter_name_to_join'); ?></p>
             <form method="POST" class="space-y-4">
                 <input type="hidden" name="action" value="join_game">
-                <input type="text" name="player_name" placeholder="Your Display Name..." required
+                <input type="text" name="player_name" placeholder="<?php echo htmlspecialchars(__('your_display_name'), ENT_QUOTES); ?>" required
                        class="bg-slate-900 border border-slate-700 rounded px-4 py-3 text-sm w-full text-center font-bold focus:outline-none focus:border-sky-500">
                 <button type="submit" class="w-full bg-sky-600 hover:bg-sky-700 py-3 rounded font-bold uppercase text-xs tracking-wider shadow">
-                    Join Game
+                    <?php echo __('join_game'); ?>
                 </button>
             </form>
         <?php else: ?>
             <div class="bg-slate-900 p-6 rounded-lg border border-slate-700 space-y-4">
-                <span class="text-xs text-slate-400 uppercase block font-bold">Logged in as: <span class="text-amber-400 text-sm font-black tracking-wide"><?php echo htmlspecialchars($my_player['name']); ?></span></span>
+                <span class="text-xs text-slate-400 uppercase block font-bold"><?php echo __('logged_in_as'); ?> <span class="text-amber-400 text-sm font-black tracking-wide"><?php echo htmlspecialchars($my_player['name']); ?></span></span>
                 
                 <div class="py-6 border-y border-slate-700 min-h-[140px] flex flex-col justify-center items-center" id="role-container">
                     <div class="text-sm font-bold text-amber-400 animate-pulse flex flex-col items-center gap-2">
-                        <span>⏳</span>Waiting for host to share roles...
+                        <span>⏳</span><?php echo __('waiting_for_host'); ?>
                     </div>
                 </div>
 
-                <div class="text-xs text-slate-400">Current Phase: <strong id="phase-display" class="uppercase text-white"><?php echo htmlspecialchars($db['phase']); ?></strong></div>
+                <div class="text-xs text-slate-400"><?php echo __('current_phase'); ?>: <strong id="phase-display" class="uppercase text-white"><?php echo htmlspecialchars(__('phase_' . $db['phase']) . ($db['phase'] !== 'setup' ? ' ' . $db['day'] : '')); ?></strong></div>
             </div>
 
             <script>
+                const i18nRoles = <?php echo json_encode($role_i18n_map); ?>;
+                const i18nTxt = {
+                    roleHiddenTitle: <?php echo json_encode(__('role_hidden_title')); ?>,
+                    roleHiddenDesc: <?php echo json_encode(__('role_hidden_desc')); ?>,
+                    secretRole: <?php echo json_encode(__('secret_role')); ?>,
+                    hidingInSec: <?php echo json_encode(__('hiding_in_seconds')); ?>,
+                    phaseSetup: <?php echo json_encode(__('phase_setup')); ?>,
+                    phaseNight: <?php echo json_encode(__('phase_night')); ?>,
+                    phaseDay: <?php echo json_encode(__('phase_day')); ?>
+                };
+
                 const myPlayerId = "<?php echo $my_player ? $my_player['id'] : ''; ?>";
                 const initialRolesShared = <?php echo ($db['roles_shared'] ?? false) ? 'true' : 'false'; ?>;
                 const initialMyRole = "<?php echo htmlspecialchars($my_player['role'] ?? 'Pending'); ?>";
@@ -78,8 +125,8 @@ if ($player_id) {
                     const container = document.getElementById('role-container');
                     if (container) {
                         container.innerHTML = `
-                            <span class="text-xs text-slate-500 uppercase block mb-2">Role Hidden</span>
-                            <div class="text-sm font-bold text-slate-600">Your role is hidden to prevent peeking.</div>
+                            <span class="text-xs text-slate-500 uppercase block mb-2">${i18nTxt.roleHiddenTitle}</span>
+                            <div class="text-sm font-bold text-slate-600">${i18nTxt.roleHiddenDesc}</div>
                         `;
                     }
                 }
@@ -95,14 +142,16 @@ if ($player_id) {
 
                     let timeLeft = 5;
                     const container = document.getElementById('role-container');
+                    const translatedRole = i18nRoles[roleName] || roleName;
 
                     countdownInterval = setInterval(() => {
                         if (timeLeft > 0) {
                             if (container) {
+                                let hideText = i18nTxt.hidingInSec.replace('%d', timeLeft);
                                 container.innerHTML = `
-                                    <span class="text-xs text-slate-400 uppercase block mb-2">Your Secret Role</span>
-                                    <div class="text-3xl font-black text-rose-400 uppercase">${roleName}</div>
-                                    <div class="text-xs text-amber-400 mt-4 font-bold">Hiding in ${timeLeft}s...</div>
+                                    <span class="text-xs text-slate-400 uppercase block mb-2">${i18nTxt.secretRole}</span>
+                                    <div class="text-3xl font-black text-rose-400 uppercase">${translatedRole}</div>
+                                    <div class="text-xs text-amber-400 mt-4 font-bold">${hideText}</div>
                                 `;
                             }
                             timeLeft--;
@@ -137,7 +186,8 @@ if ($player_id) {
 
                             const phaseDisplay = document.getElementById('phase-display');
                             if (phaseDisplay) {
-                                phaseDisplay.innerText = dbData.phase.toUpperCase() + (dbData.phase !== 'setup' ? ' ' + dbData.day : '');
+                                let pName = dbData.phase === 'setup' ? i18nTxt.phaseSetup : (dbData.phase === 'night' ? i18nTxt.phaseNight : i18nTxt.phaseDay);
+                                phaseDisplay.innerText = pName + (dbData.phase !== 'setup' ? ' ' + dbData.day : '');
                             }
 
                             const currentPlayer = dbData.players ? dbData.players.find(p => p.id === myPlayerId) : null;
@@ -154,17 +204,9 @@ if ($player_id) {
                 }
 
                 // --- INITIAL LOAD LOGIC ---
-                // Rule: Stop continuous hits.
-                // 1. If roles are already shared on load: show role/hidden state and DO NOT poll!
-                // 2. If registered and waiting: poll until roles are shared, then stop!
-                // 3. If unregistered: DO NOT poll!
                 if (initialRolesShared && initialMyRole && initialMyRole !== 'Pending') {
-                    // Roles are ALREADY shared when page loads.
-                    // Display the role and DO NOT request anything from the server!
                     startLocalCountdown(initialMyRole);
                 } else if (myPlayerId) {
-                    // User is registered and waiting for host to share roles.
-                    // Poll every 3 seconds until roles are shared, then stop immediately.
                     pollTimer = setInterval(pollPlayer, 3000);
                 }
             </script>

@@ -4,6 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/lang/loader.php';
 
 function get_db() {
     $db = load_db();

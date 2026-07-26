@@ -19,38 +19,55 @@ $all_game_roles = [
     'Mirhas',
     'Citizen'
 ];
+
+$role_i18n_map = [];
+foreach ($all_game_roles as $r_name) {
+    $role_i18n_map[$r_name] = get_role_label($r_name);
+}
+$role_i18n_map['Pending'] = get_role_label('Pending');
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?php echo get_current_lang(); ?>" dir="<?php echo get_current_dir(); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Host Control Panel - Mafia Game</title>
+    <title><?php echo __('app_title_host'); ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen p-6 font-sans">
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-6 font-sans">
     
     <div class="max-w-6xl mx-auto space-y-6">
+
+        <!-- Language Selector Header Bar -->
+        <div class="flex justify-between items-center bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-lg">
+            <div class="flex items-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-wider">
+                🌐 <?php echo __('language'); ?>:
+            </div>
+            <div>
+                <?php render_language_selector(); ?>
+            </div>
+        </div>
 
         <!-- BIG VICTORY BANNER (If Game Over) -->
         <?php if (!empty($db['winner'])): ?>
             <div class="bg-gradient-to-r <?php echo $db['winner'] === 'Citizens' ? 'from-emerald-900 via-teal-900 to-emerald-950 border-emerald-500 text-emerald-300' : 'from-rose-900 via-red-950 to-rose-950 border-rose-500 text-rose-300'; ?> border-4 p-8 rounded-2xl shadow-2xl text-center space-y-4 animate-pulse">
                 <div class="text-5xl">🏆</div>
                 <h1 class="text-4xl md:text-6xl font-black uppercase tracking-wider text-white drop-shadow-lg">
-                    <?php echo $db['winner']; ?> Win!
+                    <?php echo $db['winner'] === 'Citizens' ? __('citizens_win_title') : __('mafia_win_title'); ?>
                 </h1>
                 <p class="text-sm md:text-base font-semibold text-slate-200">
-                    <?php if ($db['winner'] === 'Citizens'): ?>
-                        All Mafia members have been successfully eliminated or justice has prevailed!
-                    <?php else: ?>
-                        The Mafia have successfully infiltrated and outnumbered the town!
-                    <?php endif; ?>
+                    <?php echo $db['winner'] === 'Citizens' ? __('citizens_win_desc') : __('mafia_win_desc'); ?>
                 </p>
                 <div class="pt-2">
                     <form method="POST">
                         <input type="hidden" name="action" value="hide_roles">
                         <button type="submit" class="bg-white text-slate-950 hover:bg-slate-200 px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest shadow-2xl transition transform hover:scale-105">
-                            🔄 Start New Rematch / Reset
+                            <?php echo __('start_new_rematch'); ?>
                         </button>
                     </form>
                 </div>
@@ -60,32 +77,32 @@ $all_game_roles = [
         <!-- Header -->
         <header class="bg-slate-900 border border-slate-800 p-6 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 shadow-xl">
             <div>
-                <h1 class="text-2xl font-black text-rose-500 uppercase tracking-wider">🔪 Mafia Host Control Panel</h1>
-                <p class="text-xs text-slate-400 mt-1">Manage game roles, track night actions, and automate phase transitions.</p>
+                <h1 class="text-2xl font-black text-rose-500 uppercase tracking-wider"><?php echo __('host_panel_title'); ?></h1>
+                <p class="text-xs text-slate-400 mt-1"><?php echo __('host_panel_subtitle'); ?></p>
             </div>
             
             <?php if ($needs_host_claim): ?>
                 <form method="POST">
                     <input type="hidden" name="action" value="claim_host">
                     <button type="submit" class="bg-rose-600 hover:bg-rose-700 px-6 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider shadow transition">
-                        Claim Host Role
+                        <?php echo __('claim_host_role'); ?>
                     </button>
                 </form>
             <?php else: ?>
                 <div class="flex items-center gap-3 flex-wrap justify-end">
                     <?php if ($db['roles_shared'] ?? false): ?>
-                        <form method="POST" onsubmit="return confirm('Do you want to start a new Rematch? Names will be kept, roles and history will be reset.');">
+                        <form method="POST" onsubmit="return confirm('<?php echo htmlspecialchars(__('confirm_rematch'), ENT_QUOTES); ?>');">
                             <input type="hidden" name="action" value="hide_roles">
                             <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider shadow transition">
-                                🔄 Rematch
+                                <?php echo __('rematch'); ?>
                             </button>
                         </form>
                     <?php endif; ?>
 
-                    <form method="POST" onsubmit="return confirm('Are you sure you want to completely reset the session and clear players?');">
+                    <form method="POST" onsubmit="return confirm('<?php echo htmlspecialchars(__('confirm_reset_session'), ENT_QUOTES); ?>');">
                         <input type="hidden" name="action" value="hard_reset">
                         <button type="submit" class="text-xs text-rose-400 hover:underline bg-slate-800 px-3 py-1.5 rounded border border-slate-700">
-                            Reset Session
+                            <?php echo __('reset_session'); ?>
                         </button>
                     </form>
                 </div>
@@ -99,23 +116,23 @@ $all_game_roles = [
                 <div class="bg-indigo-950/60 border-2 border-indigo-500/60 p-6 rounded-xl space-y-5 shadow-2xl">
                     <div class="flex justify-between items-center border-b border-indigo-900/80 pb-3">
                         <div>
-                            <span class="text-xs font-bold uppercase tracking-widest text-indigo-400">🌙 Night Control Center</span>
-                            <h2 class="text-xl font-black text-white mt-0.5">Call Roles & Record Night Actions</h2>
+                            <span class="text-xs font-bold uppercase tracking-widest text-indigo-400"><?php echo __('night_control_center'); ?></span>
+                            <h2 class="text-xl font-black text-white mt-0.5"><?php echo __('call_roles_record_actions'); ?></h2>
                         </div>
                         <form method="POST">
                             <input type="hidden" name="action" value="next_phase">
                             <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded font-bold text-xs uppercase tracking-wider shadow transition">
-                                End Night ➔ Start Day
+                                <?php echo __('end_night_start_day'); ?>
                             </button>
                         </form>
                     </div>
 
                     <p class="text-xs text-amber-300 bg-amber-950/40 border border-amber-900/60 p-3 rounded-lg">
-                        ⚠️ <strong>Host Calling Rule:</strong> 
+                        ⚠️ <strong><?php echo __('host_calling_rule'); ?></strong> 
                         <?php if ($db['grave_keeper_revealed_roles'] ?? false): ?>
-                            Because Grave Keeper agreed to reveal roles, you can <strong class="text-emerald-400">skip calling eliminated roles</strong>!
+                            <?php echo __('gk_skip_calling_rule'); ?>
                         <?php else: ?>
-                            Until Grave Keeper agrees to reveal roles, you must <strong class="text-rose-400">call all active/inactive roles</strong> so players cannot guess who died!
+                            <?php echo __('gk_call_all_rule'); ?>
                         <?php endif; ?>
                     </p>
 
@@ -163,41 +180,41 @@ $all_game_roles = [
                                         <span class="font-black text-sm text-rose-400">
                                             <?php 
                                             if ($role === 'Grave Keeper') {
-                                                echo "Grave Keeper (Charges left: $gk_charges/2)";
+                                                echo get_role_label('Grave Keeper') . ' (' . __('charges_left') . " $gk_charges/2)";
                                             } else {
-                                                echo $role;
+                                                echo get_role_label($role);
                                             }
                                             ?>
                                         </span>
                                         <?php if ($role === 'Grave Keeper'): ?>
                                             <span class="status-badge text-[10px] <?php echo $gk_acted_tonight ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-indigo-950 text-indigo-400 border border-indigo-800'; ?> px-2 py-0.5 rounded font-bold uppercase">
-                                                <?php echo $gk_acted_tonight ? 'Decided' : 'Host Prompt'; ?>
+                                                <?php echo $gk_acted_tonight ? __('decided') : __('host_prompt'); ?>
                                             </span>
                                         <?php else: ?>
                                             <?php 
                                             $recorded_target = $db['night_actions'][$role] ?? null;
                                             ?>
                                             <span class="status-badge text-[10px] px-2 py-0.5 rounded font-bold uppercase <?php echo $recorded_target ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800'; ?>">
-                                                <?php echo $recorded_target ? 'Recorded' : 'Pending'; ?>
+                                                <?php echo $recorded_target ? __('recorded') : __('pending'); ?>
                                             </span>
                                         <?php endif; ?>
                                     </div>
                                     <p class="text-xs text-slate-400 mt-1">
                                         <?php 
                                         if ($role === 'Grave Keeper') {
-                                            echo $gk_acted_tonight ? "Grave Keeper has already made a decision for tonight." : "Select Grave Keeper's action for tonight:";
+                                            echo $gk_acted_tonight ? __('gk_already_decided') : __('select_grave_keeper_action');
                                         } elseif ($role === 'Mafia Boss') {
-                                            echo "Select target for Mafia to eliminate tonight:";
+                                            echo __('select_mafia_boss_target');
                                         } elseif ($role === 'Mafia Doctor') {
-                                            echo "Select fellow Mafia member to protect:";
+                                            echo __('select_mafia_doc_target');
                                         } elseif ($role === 'Police') {
-                                            echo "Select player to shoot (cannot select self):";
+                                            echo __('select_police_target');
                                         } elseif ($role === 'Town Doctor') {
-                                            echo "Select player to protect (Self-heals used: " . ($db['town_doctor_self_protect_count'] ?? 0) . "/2):";
+                                            echo __('select_town_doc_target', ($db['town_doctor_self_protect_count'] ?? 0));
                                         } elseif ($role === 'Investigator') {
-                                            echo "Select player to investigate (cannot select self):";
+                                            echo __('select_investigator_target');
                                         } else {
-                                            echo "Select target:";
+                                            echo __('select_target');
                                         }
                                         ?>
                                     </p>
@@ -208,24 +225,24 @@ $all_game_roles = [
                                         <input type="hidden" name="action" value="answer_grave_keeper_reveal">
                                         <div class="space-y-2 <?php echo $gk_acted_tonight ? 'hidden' : ''; ?>" id="gk-buttons-container">
                                             <select name="reveal_answer" class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded p-2 focus:outline-none focus:border-rose-500">
-                                                <option value="">-- Make a Selection --</option>
-                                                <option value="yes">نعم - Reveal eliminated roles (Yes)</option>
-                                                <option value="no">لا - Do not reveal (No)</option>
+                                                <option value=""><?php echo __('make_selection'); ?></option>
+                                                <option value="yes"><?php echo __('gk_option_yes'); ?></option>
+                                                <option value="no"><?php echo __('gk_option_no'); ?></option>
                                             </select>
                                             <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 rounded uppercase tracking-wider transition shadow">
-                                                Confirm Decision
+                                                <?php echo __('confirm_decision'); ?>
                                             </button>
                                         </div>
                                         <?php if ($gk_acted_tonight): ?>
                                             <div class="text-xs text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded border border-emerald-900 text-center">
-                                                Decision recorded for tonight.
+                                                <?php echo __('gk_decision_recorded'); ?>
                                             </div>
                                         <?php endif; ?>
                                     <?php else: ?>
                                         <input type="hidden" name="action" value="record_night_target">
                                         <input type="hidden" name="role" value="<?php echo $role; ?>">
                                         <select name="target_id" class="target-select w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded p-2 focus:outline-none focus:border-rose-500">
-                                            <option value="">-- None / No Selection --</option>
+                                            <option value=""><?php echo __('none_no_selection'); ?></option>
                                             <?php 
                                             $town_doc_self_count = $db['town_doctor_self_protect_count'] ?? 0;
                                             $mafia_boss_name = $active_game_roles['Mafia Boss'] ?? '';
@@ -255,10 +272,10 @@ $all_game_roles = [
 
                                         <div class="flex gap-2">
                                             <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 rounded uppercase tracking-wider transition shadow">
-                                                Confirm
+                                                <?php echo __('confirm'); ?>
                                             </button>
-                                            <button type="button" onclick="cancelNightAction('<?php echo $role; ?>')" class="cancel-btn bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold text-xs px-3 py-2 rounded uppercase tracking-wider transition <?php echo $recorded_target ? '' : 'hidden'; ?>" title="Cancel Selection">
-                                                ✕ Cancel
+                                            <button type="button" onclick="cancelNightAction('<?php echo $role; ?>')" class="cancel-btn bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold text-xs px-3 py-2 rounded uppercase tracking-wider transition <?php echo $recorded_target ? '' : 'hidden'; ?>" title="<?php echo __('cancel'); ?>">
+                                                <?php echo __('cancel'); ?>
                                             </button>
                                         </div>
                                     <?php endif; ?>
@@ -268,14 +285,14 @@ $all_game_roles = [
                                     <?php $recorded_target = $db['night_actions'][$role] ?? null; ?>
                                     <div class="result-container space-y-1 <?php echo $recorded_target ? '' : 'hidden'; ?>">
                                         <div class="selected-text text-xs text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded border border-emerald-900 text-center truncate">
-                                            Selected: <?php echo htmlspecialchars($recorded_target ?? ''); ?>
+                                            <?php echo __('selected'); ?> <?php echo htmlspecialchars($recorded_target ?? ''); ?>
                                         </div>
 
                                         <?php if ($role === 'Investigator'): 
                                             $eval_res = $recorded_target ? evaluate_investigation($recorded_target, $db) : '';
                                         ?>
                                             <div class="investigator-result text-xs font-bold p-2 rounded border text-center <?php echo $eval_res === 'Mafia' ? 'bg-rose-950/80 border-rose-800 text-rose-300 animate-pulse' : 'bg-sky-950/80 border-sky-800 text-sky-300'; ?>">
-                                                🔍 Investigator Result: <span class="underline uppercase"><?php echo $eval_res; ?></span>
+                                                <?php echo __('investigator_result'); ?> <span class="underline uppercase"><?php echo $eval_res === 'Mafia' ? get_role_label('Regular Mafia') : get_role_label('Citizen'); ?></span>
                                             </div>
                                         <?php endif; ?>
                                     </div>
@@ -291,65 +308,65 @@ $all_game_roles = [
                 $report = $db['last_night_report'];
                 $killed_list = $report['killed_names'] ?? [];
             ?>
-                <div class="bg-slate-900 border-2 border-rose-505/50 border-rose-500/50 p-6 rounded-xl space-y-3 shadow-2xl">
+                <div class="bg-slate-900 border-2 border-rose-500/50 p-6 rounded-xl space-y-3 shadow-2xl">
                     <div class="flex items-center gap-2">
                         <span class="text-xl">☀️</span>
-                        <h2 class="text-lg font-black uppercase text-rose-400">Day <?php echo $db['day']; ?> Morning Report (Host Only)</h2>
+                        <h2 class="text-lg font-black uppercase text-rose-400"><?php echo __('day_morning_report', $db['day']); ?></h2>
                     </div>
                     
                     <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-3 text-sm">
                         <?php if (empty($killed_list)): ?>
                             <p class="text-emerald-400 font-bold text-base">
-                                ✨ No players are leaving the game today.
+                                <?php echo __('no_players_leaving'); ?>
                             </p>
                         <?php else: ?>
                             <?php foreach ($killed_list as $kname): ?>
                                 <p class="text-rose-400 font-black text-base">
-                                    ⚠️ <span class="text-white underline"><?php echo htmlspecialchars($kname); ?> is leaving game</span>
+                                    <?php echo __('player_leaving_game', '<span class="text-white underline">' . htmlspecialchars($kname) . '</span>'); ?>
                                 </p>
                             <?php endforeach; ?>
                         <?php endif; ?>
 
-                        <!-- Grave Keeper Morning Section Added Here -->
+                        <!-- Grave Keeper Morning Section -->
                         <div class="border-t border-slate-800 pt-3 mt-3 space-y-1">
-                            <p class="text-xs font-bold uppercase tracking-wider text-indigo-400">🪦 Grave Keeper Decision Status:</p>
+                            <p class="text-xs font-bold uppercase tracking-wider text-indigo-400"><?php echo __('gk_decision_status'); ?></p>
                             <?php if ($db['grave_keeper_revealed_roles'] ?? false): ?>
                                 <p class="text-xs text-emerald-400 font-bold">
-                                    Decision: <span class="underline">YES (Reveal Roles)</span>
+                                    <?php echo __('gk_decision_yes'); ?>
                                 </p>
                                 <div class="mt-2 bg-indigo-950/40 border border-indigo-900 p-3 rounded space-y-1">
-                                    <span class="text-[11px] text-slate-400 uppercase font-bold block">Roles of players currently out of the game (dead):</span>
+                                    <span class="text-[11px] text-slate-400 uppercase font-bold block"><?php echo __('roles_out_of_game'); ?></span>
                                     <?php 
                                     $dead_roles_found = false;
                                     foreach ($db['players'] as $pl) {
                                         if ($pl['status'] === 'dead' || in_array($pl['name'], $db['delayed_departure'] ?? [])) {
                                             $dead_roles_found = true;
-                                            echo '<div class="text-xs text-rose-300 font-bold">• ' . htmlspecialchars($pl['name']) . ' was a <span class="text-white uppercase underline">' . htmlspecialchars($pl['role']) . '</span></div>';
+                                            echo '<div class="text-xs text-rose-300 font-bold">• ' . htmlspecialchars($pl['name']) . ' <span class="text-white uppercase underline">' . htmlspecialchars(get_role_label($pl['role'])) . '</span></div>';
                                         }
                                     }
                                     if (!$dead_roles_found) {
-                                        echo '<div class="text-xs text-slate-500 italic">No players have been eliminated yet.</div>';
+                                        echo '<div class="text-xs text-slate-500 italic">' . __('no_players_eliminated_yet') . '</div>';
                                     }
                                     ?>
                                 </div>
                             <?php else: ?>
                                 <p class="text-xs text-slate-400 font-bold">
-                                    Decision: <span class="text-amber-400">NO / None</span> (Roles remain hidden)
+                                    <?php echo __('gk_decision_no'); ?>
                                 </p>
                             <?php endif; ?>
                         </div>
 
-                        <p class="text-[11px] text-slate-500 italic">Read this phrase to the players without disclosing backend details.</p>
+                        <p class="text-[11px] text-slate-500 italic"><?php echo __('read_phrase_notice'); ?></p>
                     </div>
 
                     <?php if (!empty($db['investigation_results'])): ?>
                         <div class="bg-sky-950/40 border border-sky-900 p-4 rounded-lg space-y-2">
-                            <h3 class="text-xs font-bold text-sky-400 uppercase">Investigator Result Recorded Last Night:</h3>
+                            <h3 class="text-xs font-bold text-sky-400 uppercase"><?php echo __('investigator_result_last_night'); ?></h3>
                             <?php foreach ($db['investigation_results'] as $res): ?>
                                 <div class="text-xs text-slate-200">
-                                    Player <strong class="text-white"><?php echo htmlspecialchars($res['target']); ?></strong> appeared to the investigator as: 
+                                    <?php echo __('appeared_as', '<strong class="text-white">' . htmlspecialchars($res['target']) . '</strong>'); ?> 
                                     <span class="px-2 py-0.5 rounded font-bold <?php echo $res['result'] === 'Mafia' ? 'bg-rose-950 text-rose-400' : 'bg-emerald-950 text-emerald-400'; ?>">
-                                        <?php echo $res['result'] === 'Mafia' ? 'Mafia' : 'Regular Citizen'; ?>
+                                        <?php echo $res['result'] === 'Mafia' ? get_role_label('Regular Mafia') : get_role_label('Citizen'); ?>
                                     </span>
                                 </div>
                             <?php endforeach; ?>
@@ -364,9 +381,9 @@ $all_game_roles = [
                 <!-- Main Control Card -->
                 <div class="md:col-span-2 bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-6 shadow-lg">
                     <div class="flex justify-between items-center">
-                        <h2 class="text-lg font-bold text-slate-200">Lobby & Players</h2>
+                        <h2 class="text-lg font-bold text-slate-200"><?php echo __('lobby_and_players'); ?></h2>
                         <div class="text-xs font-bold bg-slate-800 px-3 py-1.5 rounded border border-slate-700 text-sky-400">
-                            Connected Players: <span id="online-count"><?php echo count($db['players']); ?></span>
+                            <?php echo __('connected_players'); ?> <span id="online-count"><?php echo count($db['players']); ?></span>
                         </div>
                     </div>
 
@@ -374,11 +391,11 @@ $all_game_roles = [
                     <?php if ($db['roles_shared'] ?? false): ?>
                         <div class="bg-slate-950 p-4 rounded-lg border border-indigo-900/60 flex flex-col sm:flex-row items-center justify-between gap-4">
                             <div>
-                                <span class="text-xs font-bold text-indigo-400 uppercase block">Grave Keeper Status & Reveal State</span>
+                                <span class="text-xs font-bold text-indigo-400 uppercase block"><?php echo __('gk_status_reveal_state'); ?></span>
                                 <p class="text-xs text-slate-400 mt-0.5">
-                                    Charges Left: <strong class="text-white"><?php echo ($db['grave_keeper_charges'] ?? 2); ?>/2</strong> | 
-                                    Roles Revealed Status: <strong class="<?php echo ($db['grave_keeper_revealed_roles'] ?? false) ? 'text-emerald-400' : 'text-rose-400'; ?>">
-                                        <?php echo ($db['grave_keeper_revealed_roles'] ?? false) ? 'Revealed (Skip dead roles at night)' : 'Hidden (Call all roles at night)'; ?>
+                                    <?php echo __('charges_left'); ?> <strong class="text-white"><?php echo ($db['grave_keeper_charges'] ?? 2); ?>/2</strong> | 
+                                    <strong class="<?php echo ($db['grave_keeper_revealed_roles'] ?? false) ? 'text-emerald-400' : 'text-rose-400'; ?>">
+                                        <?php echo ($db['grave_keeper_revealed_roles'] ?? false) ? __('revealed_status_yes') : __('revealed_status_no'); ?>
                                     </strong>
                                 </p>
                             </div>
@@ -392,63 +409,63 @@ $all_game_roles = [
                                 <input type="hidden" name="action" value="share_roles">
                                 
                                 <div class="flex items-center gap-3">
-                                    <label for="mafia_count" class="text-xs text-slate-300 font-bold">Exact Mafia Count:</label>
+                                    <label for="mafia_count" class="text-xs text-slate-300 font-bold"><?php echo __('exact_mafia_count'); ?></label>
                                     <input type="number" id="mafia_count" name="mafia_count" value="2" min="1" max="15" 
                                            class="w-16 bg-slate-900 border border-slate-700 text-center text-white text-sm font-bold rounded p-1.5 focus:outline-none focus:border-rose-500">
                                 </div>
 
                                 <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 rounded font-bold text-xs uppercase tracking-wider transition shadow">
-                                    Distribute Roles & Start Game
+                                    <?php echo __('distribute_roles_start'); ?>
                                 </button>
                             </form>
                         <?php else: ?>
                             <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 text-center text-xs text-amber-400 font-bold uppercase tracking-wider">
-                                🔒 Roles successfully distributed and hidden from players.
+                                <?php echo __('roles_distributed_hidden'); ?>
                             </div>
                         <?php endif; ?>
                     </div>
 
                     <!-- Players Table -->
                     <div class="overflow-x-auto border border-slate-800 rounded-lg">
-                        <table class="w-full text-left border-collapse text-sm">
+                        <table class="w-full text-left rtl:text-right border-collapse text-sm">
                             <thead>
                                 <tr class="bg-slate-950 text-slate-400 text-xs uppercase border-b border-slate-800">
-                                    <th class="p-3">Player Name</th>
-                                    <th class="p-3">Assigned Role</th>
-                                    <th class="p-3">Status</th>
-                                    <th class="p-3 text-right">Actions</th>
+                                    <th class="p-3"><?php echo __('player_name'); ?></th>
+                                    <th class="p-3"><?php echo __('assigned_role'); ?></th>
+                                    <th class="p-3"><?php echo __('status'); ?></th>
+                                    <th class="p-3 text-right rtl:text-left"><?php echo __('actions'); ?></th>
                                 </tr>
                             </thead>
                             <tbody id="players-table-body" class="divide-y divide-slate-800">
                                 <?php if (empty($db['players'])): ?>
-                                    <tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">No players registered yet.</td></tr>
+                                    <tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs"><?php echo __('no_players_registered'); ?></td></tr>
                                 <?php else: ?>
                                     <?php foreach ($db['players'] as $p): ?>
                                         <tr class="hover:bg-slate-800/50">
                                             <td class="p-3 font-semibold"><?php echo htmlspecialchars($p['name']); ?></td>
                                             <td class="p-3">
                                                 <span class="px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-sky-300 border border-slate-700">
-                                                    <?php echo htmlspecialchars($p['role']); ?>
+                                                    <?php echo htmlspecialchars(get_role_label($p['role'])); ?>
                                                 </span>
                                             </td>
                                             <td class="p-3">
                                                 <span class="text-xs font-bold <?php echo $p['status'] === 'alive' ? 'text-emerald-400' : 'text-rose-500 line-through'; ?>">
                                                     <?php 
                                                         if (in_array($p['name'], $db['delayed_departure'] ?? [])) {
-                                                            echo 'Alive Temporarily (Mirhas)';
+                                                            echo __('alive_temporarily_mirhas');
                                                         } else {
-                                                            echo $p['status'] === 'alive' ? 'Alive' : 'Dead';
+                                                            echo $p['status'] === 'alive' ? __('alive') : __('dead');
                                                         }
                                                     ?>
                                                 </span>
                                             </td>
-                                            <td class="p-3 text-right space-x-2 flex flex-wrap justify-end gap-1">
+                                            <td class="p-3 text-right rtl:text-left space-x-2 flex flex-wrap justify-end gap-1">
                                                 <?php if ($db['phase'] === 'day' && $p['status'] === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? []) && empty($db['winner'])): ?>
                                                     <form method="POST" class="inline">
                                                         <input type="hidden" name="action" value="kick_player_day">
                                                         <input type="hidden" name="player_id" value="<?php echo $p['id']; ?>">
                                                         <button type="submit" class="text-xs text-amber-300 hover:text-white bg-amber-950/60 px-2.5 py-1 rounded border border-amber-800">
-                                                            Vote / Kick Daytime
+                                                            <?php echo __('vote_kick_daytime'); ?>
                                                         </button>
                                                     </form>
                                                 <?php endif; ?>
@@ -456,7 +473,7 @@ $all_game_roles = [
                                                     <input type="hidden" name="action" value="toggle_status">
                                                     <input type="hidden" name="player_id" value="<?php echo $p['id']; ?>">
                                                     <button type="submit" class="text-xs text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
-                                                        Toggle Alive/Dead
+                                                        <?php echo __('toggle_alive_dead'); ?>
                                                     </button>
                                                 </form>
                                             </td>
@@ -471,11 +488,11 @@ $all_game_roles = [
                 <!-- Game Phase & Logs Sidebar -->
                 <div class="space-y-6">
                     <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4 shadow-lg">
-                        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">Phase Management</h2>
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400"><?php echo __('phase_management'); ?></h2>
                         <div class="bg-slate-950 border border-slate-800 p-4 rounded-lg text-center space-y-2">
-                            <span class="text-xs text-slate-500 uppercase block">Current Phase</span>
+                            <span class="text-xs text-slate-500 uppercase block"><?php echo __('current_phase'); ?></span>
                             <div class="text-xl font-black uppercase text-rose-400" id="phase-label">
-                                <?php echo $db['winner'] !== null ? 'GAME OVER' : ($db['phase'] . ' ' . ($db['phase'] !== 'setup' ? $db['day'] : '')); ?>
+                                <?php echo $db['winner'] !== null ? __('game_over') : (__('phase_' . $db['phase']) . ' ' . ($db['phase'] !== 'setup' ? $db['day'] : '')); ?>
                             </div>
                         </div>
 
@@ -484,12 +501,12 @@ $all_game_roles = [
                                 <form method="POST">
                                     <input type="hidden" name="action" value="next_phase">
                                     <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded font-bold text-xs uppercase tracking-wider shadow transition">
-                                        Go to Next Phase ➔
+                                        <?php echo __('go_to_next_phase'); ?>
                                     </button>
                                 </form>
                             <?php else: ?>
                                 <div class="bg-amber-950/40 border border-amber-900/60 p-3 rounded-lg text-center text-xs text-amber-300 font-bold uppercase">
-                                    ⚠️ Distribute roles above to unlock phase transitions
+                                    <?php echo __('unlock_phase_notice'); ?>
                                 </div>
                             <?php endif; ?>
                         <?php endif; ?>
@@ -497,7 +514,7 @@ $all_game_roles = [
 
                     <!-- Activity Log -->
                     <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-3 shadow-lg">
-                        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">Activity Log</h2>
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400"><?php echo __('activity_log'); ?></h2>
                         <div class="bg-slate-950 border border-slate-800 p-3 rounded-lg h-48 overflow-y-auto text-xs space-y-2 font-mono text-slate-300 text-left" id="logs-container">
                             <?php foreach (array_reverse($db['logs']) as $log): ?>
                                 <div class="border-b border-slate-900 pb-1"><?php echo htmlspecialchars($log); ?></div>
@@ -509,11 +526,36 @@ $all_game_roles = [
             </div>
 
             <script>
+                const i18nRoles = <?php echo json_encode($role_i18n_map); ?>;
+                const i18nTxt = {
+                    noPlayers: <?php echo json_encode(__('no_players_registered')); ?>,
+                    aliveTemp: <?php echo json_encode(__('alive_temporarily_mirhas')); ?>,
+                    alive: <?php echo json_encode(__('alive')); ?>,
+                    dead: <?php echo json_encode(__('dead')); ?>,
+                    voteKick: <?php echo json_encode(__('vote_kick_daytime')); ?>,
+                    toggle: <?php echo json_encode(__('toggle_alive_dead')); ?>,
+                    gameOver: <?php echo json_encode(__('game_over')); ?>,
+                    phaseSetup: <?php echo json_encode(__('phase_setup')); ?>,
+                    phaseNight: <?php echo json_encode(__('phase_night')); ?>,
+                    phaseDay: <?php echo json_encode(__('phase_day')); ?>,
+                    recorded: <?php echo json_encode(__('recorded')); ?>,
+                    pending: <?php echo json_encode(__('pending')); ?>,
+                    decided: <?php echo json_encode(__('decided')); ?>,
+                    gkDecisionRecorded: <?php echo json_encode(__('gk_decision_recorded')); ?>,
+                    selectedPrefix: <?php echo json_encode(__('selected')); ?>
+                };
+
                 let lastRolesSharedState = <?php echo json_encode($db['roles_shared'] ?? false); ?>;
                 let lastPhaseState = "<?php echo $db['phase']; ?>";
                 let lastWinnerState = <?php echo json_encode($db['winner'] ?? null); ?>;
                 let lastGraveRevealState = <?php echo json_encode($db['grave_keeper_revealed_roles'] ?? false); ?>;
                 let lastGraveChargesState = <?php echo json_encode($db['grave_keeper_charges'] ?? 2); ?>;
+
+                function getPhaseLabel(phase, day, winner) {
+                    if (winner) return i18nTxt.gameOver;
+                    let pName = phase === 'setup' ? i18nTxt.phaseSetup : (phase === 'night' ? i18nTxt.phaseNight : i18nTxt.phaseDay);
+                    return pName + (phase !== 'setup' ? ' ' + day : '');
+                }
 
                 function pollHost() {
                     fetch('actions.php?ajax=1')
@@ -525,16 +567,16 @@ $all_game_roles = [
                             }
 
                             document.getElementById('online-count').innerText = data.players.length;
-                            document.getElementById('phase-label').innerText = data.winner ? 'GAME OVER' : (data.phase.toUpperCase() + (data.phase !== 'setup' ? ' ' + data.day : ''));
+                            document.getElementById('phase-label').innerText = getPhaseLabel(data.phase, data.day, data.winner);
 
                             const tbody = document.getElementById('players-table-body');
                             if (data.players.length === 0) {
-                                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">No players registered yet.</td></tr>`;
+                                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">${i18nTxt.noPlayers}</td></tr>`;
                             } else {
                                 let html = '';
                                 data.players.forEach(p => {
                                     let isDelayed = (data.delayed_departure || []).includes(p.name);
-                                    let statusText = isDelayed ? 'Alive Temporarily (Mirhas)' : (p.status === 'alive' ? 'Alive' : 'Dead');
+                                    let statusText = isDelayed ? i18nTxt.aliveTemp : (p.status === 'alive' ? i18nTxt.alive : i18nTxt.dead);
                                     let statusClass = (p.status === 'alive' || isDelayed) ? 'text-emerald-400' : 'text-rose-500 line-through';
 
                                     let kickButton = '';
@@ -544,24 +586,26 @@ $all_game_roles = [
                                                 <input type="hidden" name="action" value="kick_player_day">
                                                 <input type="hidden" name="player_id" value="${p.id}">
                                                 <button type="submit" class="text-xs text-amber-300 hover:text-white bg-amber-950/60 px-2.5 py-1 rounded border border-amber-800">
-                                                    Vote / Kick Daytime
+                                                    ${i18nTxt.voteKick}
                                                 </button>
                                             </form>
                                         `;
                                     }
 
+                                    let roleTranslated = i18nRoles[p.role] || p.role;
+
                                     html += `
                                         <tr class="hover:bg-slate-800/50">
                                             <td class="p-3 font-semibold">${p.name}</td>
-                                            <td class="p-3"><span class="px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-sky-300 border border-slate-700">${p.role}</span></td>
+                                            <td class="p-3"><span class="px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-sky-300 border border-slate-700">${roleTranslated}</span></td>
                                             <td class="p-3"><span class="text-xs font-bold ${statusClass}">${statusText}</span></td>
-                                            <td class="p-3 text-right space-x-2 flex flex-wrap justify-end gap-1">
+                                            <td class="p-3 text-right rtl:text-left space-x-2 flex flex-wrap justify-end gap-1">
                                                 ${kickButton}
                                                 <form method="POST" class="inline">
                                                     <input type="hidden" name="action" value="toggle_status">
                                                     <input type="hidden" name="player_id" value="${p.id}">
                                                     <button type="submit" class="text-xs text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
-                                                        Toggle Alive/Dead
+                                                        ${i18nTxt.toggle}
                                                     </button>
                                                 </form>
                                             </td>
@@ -634,13 +678,13 @@ $all_game_roles = [
                         if (gkButtons) gkButtons.classList.add('hidden');
                         if (statusBadge) {
                             statusBadge.className = "status-badge text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-bold uppercase";
-                            statusBadge.innerText = "Decided";
+                            statusBadge.innerText = i18nTxt.decided;
                         }
                         const formElem = card.querySelector('form');
                         if (formElem && !formElem.querySelector('.text-emerald-400')) {
                             const notice = document.createElement('div');
                             notice.className = "text-xs text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded border border-emerald-900 text-center";
-                            notice.innerText = "Decision recorded for tonight.";
+                            notice.innerText = i18nTxt.gkDecisionRecorded;
                             formElem.appendChild(notice);
                         }
                     } else {
@@ -653,15 +697,15 @@ $all_game_roles = [
                         if (recordedTarget) {
                             if (statusBadge) {
                                 statusBadge.className = "status-badge text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-bold uppercase";
-                                statusBadge.innerText = "Recorded";
+                                statusBadge.innerText = i18nTxt.recorded;
                             }
                             if (cancelBtn) cancelBtn.classList.remove('hidden');
                             if (resultContainer) resultContainer.classList.remove('hidden');
-                            if (selectedText) selectedText.innerText = "Selected: " + recordedTarget;
+                            if (selectedText) selectedText.innerText = i18nTxt.selectedPrefix + " " + recordedTarget;
                         } else {
                             if (statusBadge) {
                                 statusBadge.className = "status-badge text-[10px] bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded font-bold uppercase";
-                                statusBadge.innerText = "Pending";
+                                statusBadge.innerText = i18nTxt.pending;
                             }
                             if (selectElem) selectElem.value = "";
                             if (cancelBtn) cancelBtn.classList.add('hidden');
