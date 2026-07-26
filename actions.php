@@ -22,7 +22,10 @@ function get_db() {
             'logs' => ['Game session created.'],
             'grave_keeper_charges' => 2,
             'grave_keeper_revealed_roles' => false,
+            'grave_keeper_reveal_pending' => false,
             'grave_keeper_acted_tonight' => false,
+            'gravedigger_charges' => 2,
+            'gravedigger_reveal_pending' => false,
             'town_doctor_self_protect_count' => 0,
             'last_night_report' => null,
             'investigation_results' => [],
@@ -72,11 +75,20 @@ function evaluate_investigation($target_name, $db) {
     }
 
     // Deceiver's night action effect on investigator results:
-    // Deceiver can switch perceived role of any player EXCLUDING Mafia Boss
-    $deceiver_target = $db['night_actions']['Deceiver'] ?? null;
-    if ($deceiver_target && $deceiver_target === $target_name) {
-        if ($target_role !== 'Mafia Boss') {
-            $res = ($res === 'Mafia') ? 'Citizen' : 'Mafia';
+    // Deceiver can switch perceived role of any player EXCLUDING Mafia Boss, ONLY if Deceiver is alive!
+    $deceiver_alive = false;
+    foreach ($db['players'] as $p) {
+        if (($p['role'] ?? '') === 'Deceiver' && $p['status'] === 'alive') {
+            $deceiver_alive = true;
+            break;
+        }
+    }
+    if ($deceiver_alive) {
+        $deceiver_target = $db['night_actions']['Deceiver'] ?? null;
+        if ($deceiver_target && $deceiver_target === $target_name) {
+            if ($target_role !== 'Mafia Boss') {
+                $res = ($res === 'Mafia') ? 'Citizen' : 'Mafia';
+            }
         }
     }
 
@@ -237,7 +249,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $db['delayed_departure'] = [];
             $db['grave_keeper_charges'] = 2;
             $db['grave_keeper_revealed_roles'] = false;
+            $db['grave_keeper_reveal_pending'] = false;
             $db['grave_keeper_acted_tonight'] = false;
+            $db['gravedigger_charges'] = 2;
+            $db['gravedigger_reveal_pending'] = false;
             $db['town_doctor_self_protect_count'] = 0;
             unset($db['suicidal_bomb_triggered_by']);
             $db['reset_token'] = uniqid('rst_', true);
@@ -262,7 +277,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'logs' => ['Hard reset executed. Session cleared.'],
                 'grave_keeper_charges' => 2,
                 'grave_keeper_revealed_roles' => false,
+                'grave_keeper_reveal_pending' => false,
                 'grave_keeper_acted_tonight' => false,
+                'gravedigger_charges' => 2,
+                'gravedigger_reveal_pending' => false,
                 'town_doctor_self_protect_count' => 0,
                 'last_night_report' => null,
                 'investigation_results' => [],
@@ -334,13 +352,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
 
             if ($answer === 'yes') {
-                $db['grave_keeper_revealed_roles'] = true;
+                $db['grave_keeper_reveal_pending'] = true;
+                $db['gravedigger_reveal_pending'] = true;
                 if (($db['grave_keeper_charges'] ?? 2) > 0) {
                     $db['grave_keeper_charges'] = ($db['grave_keeper_charges'] ?? 2) - 1;
+                    $db['gravedigger_charges'] = $db['grave_keeper_charges'];
                 }
             } else {
-                $db['grave_keeper_revealed_roles'] = false;
+                $db['grave_keeper_reveal_pending'] = false;
+                $db['gravedigger_reveal_pending'] = false;
             }
+            $db['grave_keeper_revealed_roles'] = false;
             $db['grave_keeper_acted_tonight'] = true;
             save_db($db);
 
@@ -661,10 +683,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     ];
                 }
 
+                $revealed_roles = [];
+                if ($db['grave_keeper_reveal_pending'] ?? false) {
+                    foreach ($final_killed as $kname) {
+                        foreach ($db['players'] as $p) {
+                            if ($p['name'] === $kname) {
+                                $revealed_roles[$kname] = $p['role'] ?? 'Citizen';
+                                break;
+                            }
+                        }
+                    }
+                    $db['grave_keeper_revealed_roles'] = true;
+                    $db['grave_keeper_reveal_pending'] = false;
+                    $db['gravedigger_reveal_pending'] = false;
+                } else {
+                    $db['grave_keeper_revealed_roles'] = false;
+                }
+
                 $db['last_night_report'] = [
                     'killed_names' => array_values($final_killed),
                     'saved_names' => array_values(array_unique($saved_names)),
-                    'diary_entries' => $diary
+                    'diary_entries' => $diary,
+                    'revealed_roles' => $revealed_roles
                 ];
 
                 $db['phase'] = 'day';

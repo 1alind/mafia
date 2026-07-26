@@ -252,9 +252,8 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                             }
                         }
 
-                        // Always call Grave Keeper if they exist and haven't revealed roles yet,
-                        // even if they are dead, to maintain the illusion and keep the game fair.
-                        $call_grave_keeper_tonight = ($has_grave_keeper && !$gk_revealed);
+                        // Check if Gravedigger is alive and has remaining charges
+                        $call_grave_keeper_tonight = ($has_grave_keeper && !$is_gk_dead && $gk_charges > 0);
 
                         foreach ($all_game_roles as $role): 
                             if (in_array($role, ['Judge', 'Citizen', 'Mirhas'])) continue;
@@ -342,9 +341,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                                     $disable_reason = ' (' . ($lang === 'ku' ? 'چ جاران نەماینە' : ($lang === 'ar' ? 'لا توجد محاولات' : 'No charges left')) . ')';
                                                 }
                                                 ?>
-                                                <?php if ($is_gk_dead || $gk_charges <= 0): ?>
-                                                    <option value="yes" disabled><?php echo __('gk_option_yes') . $disable_reason; ?></option>
-                                                <?php else: ?>
+                                                <?php if (!($is_gk_dead || $gk_charges <= 0)): ?>
                                                     <option value="yes"><?php echo __('gk_option_yes'); ?></option>
                                                 <?php endif; ?>
                                                 <option value="no"><?php echo __('gk_option_no'); ?></option>
@@ -483,24 +480,23 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                 <p class="text-xs text-emerald-400 font-bold">
                                     <?php 
                                     if ($lang === 'ku') {
-                                        echo '🪦 گۆڕهەڵکەن بڕیاردا کو ڕۆلان ئاشکرا بکەت، ڕۆلێن کو دەرکەفتینە ئەڤەنە:';
+                                        echo '🪦 گۆڕهەڵکەن بڕیاردا کو ڕۆلێن یاریزانێن شەڤا بڕی مرین ئاشکرا بکەت:';
                                     } elseif ($lang === 'ar') {
-                                        echo '🪦 قرر حارس القبور كشف الأدوار، الأدوار التي خرجت من اللعبة هي:';
+                                        echo '🪦 قرر حارس القبور كشف أدوار اللاعبين الذين ماتوا الليلة الماضية:';
                                     } else {
-                                        echo '🪦 Grave keeper revealed the roles, the roles that are out of game are:';
+                                        echo '🪦 Grave keeper decided to reveal the roles of players who died last night:';
                                     }
                                     ?>
                                 </p>
-                                <div class="mt-1 bg-indigo-950/40 border border-indigo-900/60 p-3 rounded-lg space-y-1 font-bold">
+                                <div class="mt-1 bg-indigo-950/40 border border-indigo-900/60 p-3 rounded-lg font-bold">
                                     <?php 
-                                    $dead_roles = [];
-                                    foreach ($db['players'] as $pl) {
-                                        if ($pl['status'] === 'dead' || in_array($pl['name'], $db['delayed_departure'] ?? [])) {
-                                            $dead_roles[] = htmlspecialchars(get_role_label($pl['role']));
+                                    $revealed_roles = $report['revealed_roles'] ?? [];
+                                    if (!empty($revealed_roles)) {
+                                        $display_parts = [];
+                                        foreach ($revealed_roles as $name => $role_name) {
+                                            $display_parts[] = '<span class="text-white">' . htmlspecialchars($name) . '</span>: <span class="text-rose-300 underline">' . htmlspecialchars(get_role_label($role_name)) . '</span>';
                                         }
-                                    }
-                                    if (!empty($dead_roles)) {
-                                        echo '<span class="text-rose-300 text-xs">' . implode(', ', array_unique($dead_roles)) . '</span>';
+                                        echo '<div class="text-xs space-y-1">' . implode('<br>', $display_parts) . '</div>';
                                     } else {
                                         echo '<span class="text-xs text-slate-500 italic">' . __('no_players_eliminated_yet') . '</span>';
                                     }
@@ -1213,6 +1209,8 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                 let lastGraveRevealState = <?php echo json_encode($db['grave_keeper_revealed_roles'] ?? false); ?>;
                 let lastGraveChargesState = <?php echo json_encode($db['grave_keeper_charges'] ?? 2); ?>;
 
+                let lastNightActionsState = <?php echo json_encode($db['night_actions'] ?? []); ?>;
+
                 function getPhaseLabel(phase, day, winner) {
                     if (winner) return i18nTxt.gameOver;
                     let pName = phase === 'setup' ? i18nTxt.phaseSetup : (phase === 'night' ? i18nTxt.phaseNight : i18nTxt.phaseDay);
@@ -1223,7 +1221,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                     fetch('actions.php?ajax=1')
                         .then(r => r.json())
                         .then(data => {
-                            if (data.roles_shared !== lastRolesSharedState || data.phase !== lastPhaseState || data.winner !== lastWinnerState || data.grave_keeper_revealed_roles !== lastGraveRevealState || data.grave_keeper_charges !== lastGraveChargesState) {
+                            if (data.roles_shared !== lastRolesSharedState || data.phase !== lastPhaseState || data.winner !== lastWinnerState || data.grave_keeper_revealed_roles !== lastGraveRevealState || data.grave_keeper_charges !== lastGraveChargesState || JSON.stringify(data.night_actions) !== JSON.stringify(lastNightActionsState)) {
                                 location.reload();
                                 return;
                             }
@@ -1288,7 +1286,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
 
                 setInterval(pollHost, 2000);
 
-                // AJAX handler for night actions without full page reload
+                // AJAX handler for night actions with full page reload
                 function handleNightActionSubmit(event, role) {
                     event.preventDefault();
                     const form = event.target;
@@ -1299,11 +1297,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                         body: formData
                     })
                     .then(() => {
-                        fetch('actions.php?ajax=1')
-                            .then(r => r.json())
-                            .then(data => {
-                                refreshNightCardUI(role, data);
-                            });
+                        location.reload();
                     })
                     .catch(err => console.error('Error submitting night action:', err));
                 }
@@ -1319,11 +1313,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                         body: formData
                     })
                     .then(() => {
-                        fetch('actions.php?ajax=1')
-                            .then(r => r.json())
-                            .then(data => {
-                                refreshNightCardUI(role, data);
-                            });
+                        location.reload();
                     })
                     .catch(err => console.error('Error canceling night action:', err));
                 }
