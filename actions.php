@@ -341,6 +341,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $mafia_doc_target = $db['night_actions']['Mafia Doctor'] ?? null;
                 $town_doc_target = $db['night_actions']['Town Doctor'] ?? null;
                 $police_target = $db['night_actions']['Police'] ?? null;
+                $suicidal_bomb_target = $db['night_actions']['Suicidal Bomb'] ?? null;
 
                 if ($town_doc_target) {
                     foreach ($db['players'] as $p) {
@@ -433,12 +434,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                 }
 
+                // Suicidal Bomb Active Night Detonation
+                $bomb_player_name = null;
+                if ($suicidal_bomb_target) {
+                    foreach ($db['players'] as $p) {
+                        if (($p['role'] ?? '') === 'Suicidal Bomb' && $p['status'] === 'alive') {
+                            $bomb_player_name = $p['name'];
+                            break;
+                        }
+                    }
+                    if ($bomb_player_name) {
+                        if (!in_array($bomb_player_name, $killed_names)) {
+                            $killed_names[] = $bomb_player_name;
+                        }
+                        if (!in_array($suicidal_bomb_target, $killed_names)) {
+                            $killed_names[] = $suicidal_bomb_target;
+                        }
+                        // Suicidal Bomb explosion bypasses doctor protection completely for both
+                        $saved_names = array_values(array_diff($saved_names, [$bomb_player_name, $suicidal_bomb_target]));
+                        $db['logs'][] = "💥 Suicidal Bomb ({$bomb_player_name}) detonated at night on {$suicidal_bomb_target}! Both were eliminated (bypassing doctor protection and roles).";
+                    }
+                }
+
                 $final_killed = [];
                 foreach ($killed_names as $kname) {
                     foreach ($db['players'] as &$p) {
                         if ($p['name'] === $kname) {
                             if (($p['role'] ?? '') === 'Mirhas') {
-                                if (!in_array($kname, $db['delayed_departure'] ?? [])) {
+                                if (($bomb_player_name && $kname === $bomb_player_name) || ($suicidal_bomb_target && $kname === $suicidal_bomb_target)) {
+                                    $p['status'] = 'dead';
+                                    $final_killed[] = $kname;
+                                } elseif (!in_array($kname, $db['delayed_departure'] ?? [])) {
                                     $db['delayed_departure'][] = $kname;
                                     $db['logs'][] = "Mirhas ({$kname}) was targeted but stays alive for 1 day.";
                                 } else {

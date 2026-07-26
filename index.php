@@ -253,6 +253,8 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                             echo __('select_town_doc_target', ($db['town_doctor_self_protect_count'] ?? 0));
                                         } elseif ($role === 'Investigator') {
                                             echo __('select_investigator_target');
+                                        } elseif ($role === 'Suicidal Bomb') {
+                                            echo __('select_suicidal_bomb_target');
                                         } else {
                                             echo __('select_target');
                                         }
@@ -297,6 +299,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
 
                                                 if ($role === 'Police' && $p['name'] === ($active_game_roles['Police'] ?? '')) continue;
                                                 if ($role === 'Investigator' && $p['name'] === ($active_game_roles['Investigator'] ?? '')) continue;
+                                                if ($role === 'Suicidal Bomb' && $p['name'] === ($active_game_roles['Suicidal Bomb'] ?? '')) continue;
 
                                                 if ($role === 'Town Doctor' && $p['name'] === ($active_game_roles['Town Doctor'] ?? '') && $town_doc_self_count >= 2) {
                                                     continue;

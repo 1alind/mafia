@@ -61,6 +61,7 @@ return [
     'select_police_target' => 'Select player to shoot (cannot select self):',
     'select_town_doc_target' => 'Select player to protect from bullets (Self-heals used: %s/2):',
     'select_investigator_target' => 'Select player to investigate (cannot select self):',
+    'select_suicidal_bomb_target' => 'Select a player to detonate on tonight (optional - both bomb and target will be eliminated bypassing doctor protection):',
     'select_target' => 'Select target:',
     'make_selection' => '-- Make a Selection --',
     'gk_option_yes' => 'Yes - Reveal eliminated roles',
@@ -171,7 +172,7 @@ return [
     'desc_judge' => 'Key town authority. During daytime voting, Judge can decide to apply the vote, cancel all votings, or select only one voted person to kick while keeping others in game.',
     'desc_grave_keeper' => 'Grave Keeper. Has 2 charges to decide if dead roles are revealed at night. If YES, host skips calling dead roles.',
     'desc_mirhas' => 'Tough survivor. If targeted at night, survives and stays alive for 1 additional day before departing.',
-    'desc_suicidal_bomb' => 'Volatile Citizen role. If shot by the Mafia at night (and not saved by Doctor), both the Suicidal Bomb and the Mafia shooter (Boss) are eliminated! If voted out during daytime, he can freely choose any player to be kicked out with him.',
+    'desc_suicidal_bomb' => 'Volatile Citizen role. During night, can choose to detonate on any player (eliminating both bypassing any role or doctor protection). If shot by Mafia at night (and not saved), both explode and die. If voted out during day, can freely choose a player to take down or leave alone.',
     'desc_citizen' => 'Innocent town member. Uses deduction, logic, and voting during daytime to identify and eliminate the Mafia.',
 
     // Win teams
