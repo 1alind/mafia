@@ -262,6 +262,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             exit;
         }
 
+        if ($action === 'add_bot' || $action === 'add_five_bots') {
+            $num_bots = ($action === 'add_five_bots') ? 5 : 1;
+            $bot_names_pool = ["Azad", "Berivan", "Shergo", "Dilshad", "Ronahi", "Karwan", "Hevi", "Jiyan", "Sidar", "Kawa", "Chinar", "Dara", "Zozan", "Soran", "Nazan", "Avrin", "Alan", "Rojhat", "Zinar", "Bahar", "Shvan"];
+            
+            $existing_names = [];
+            foreach ($db['players'] as $p) {
+                $existing_names[] = strtolower($p['name']);
+            }
+            
+            for ($i = 0; $i < $num_bots; $i++) {
+                $found_name = null;
+                foreach ($bot_names_pool as $candidate) {
+                    $candidate_with_bot = "Bot " . $candidate;
+                    if (!in_array(strtolower($candidate_with_bot), $existing_names)) {
+                        $found_name = $candidate_with_bot;
+                        break;
+                    }
+                }
+                
+                if (!$found_name) {
+                    $counter = 1;
+                    while (true) {
+                        $candidate_with_bot = "Bot " . $counter;
+                        if (!in_array(strtolower($candidate_with_bot), $existing_names)) {
+                            $found_name = $candidate_with_bot;
+                            break;
+                        }
+                        $counter++;
+                    }
+                }
+                
+                $existing_names[] = strtolower($found_name);
+                
+                $pid = 'p_' . substr(bin2hex(random_bytes(4)), 0, 8);
+                $db['players'][] = [
+                    'id' => $pid,
+                    'name' => $found_name,
+                    'browser_id' => 'bot_' . $pid,
+                    'role' => 'Pending',
+                    'status' => 'alive'
+                ];
+                $db['logs'][] = "Bot player '{$found_name}' joined the game.";
+            }
+            save_db($db);
+            header("Location: index.php");
+            exit;
+        }
+
+        if ($action === 'remove_player_setup') {
+            $pid = $_POST['player_id'] ?? '';
+            foreach ($db['players'] as $key => $p) {
+                if ($p['id'] === $pid) {
+                    $db['logs'][] = "Player '{$p['name']}' was removed from the lobby.";
+                    unset($db['players'][$key]);
+                    break;
+                }
+            }
+            $db['players'] = array_values($db['players']);
+            save_db($db);
+            header("Location: index.php");
+            exit;
+        }
+
         if ($action === 'hard_reset') {
             $existing_pass = $db['host_password'] ?? '1234';
             $db = [

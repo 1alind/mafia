@@ -718,6 +718,22 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                 <span>📦</span> <?php echo __('distribute_roles_start'); ?>
                             </button>
 
+                            <!-- Add Bot Players for testing -->
+                            <div class="mt-4 grid grid-cols-2 gap-3">
+                                <form method="POST" class="w-full">
+                                    <input type="hidden" name="action" value="add_bot">
+                                    <button type="submit" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 hover:text-sky-300 px-4 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-2">
+                                        <span>🤖</span> +1 Bot Player
+                                    </button>
+                                </form>
+                                <form method="POST" class="w-full">
+                                    <input type="hidden" name="action" value="add_five_bots">
+                                    <button type="submit" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 hover:text-sky-300 px-4 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-2">
+                                        <span>🤖🤖</span> +5 Bot Players
+                                    </button>
+                                </form>
+                            </div>
+
                             <!-- Roles Selection Modal Overlay -->
                             <div id="roles-config-modal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                                 <form method="POST" class="bg-slate-900 border border-slate-800 rounded-xl p-6 w-full max-w-md space-y-5 shadow-2xl relative">
@@ -824,13 +840,24 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                                         </button>
                                                     </form>
                                                 <?php endif; ?>
-                                                <form method="POST" class="inline">
-                                                    <input type="hidden" name="action" value="toggle_status">
-                                                    <input type="hidden" name="player_id" value="<?php echo $p['id']; ?>">
-                                                    <button type="submit" class="text-xs text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
-                                                        <?php echo __('toggle_alive_dead'); ?>
-                                                    </button>
-                                                </form>
+                                                 <?php if (!($db['roles_shared'] ?? false)): ?>
+                                                     <form method="POST" class="inline">
+                                                         <input type="hidden" name="action" value="remove_player_setup">
+                                                         <input type="hidden" name="player_id" value="<?php echo $p['id']; ?>">
+                                                         <button type="submit" class="text-xs text-rose-400 hover:text-white bg-rose-950/60 px-2.5 py-1 rounded border border-rose-900/60 transition">
+                                                             <?php echo get_current_lang() === 'ku' ? 'ژێبرن' : (get_current_lang() === 'ar' ? 'حذف' : 'Remove'); ?>
+                                                         </button>
+                                                     </form>
+                                                 <?php endif; ?>
+                                                 <?php if ($db['roles_shared'] ?? false): ?>
+                                                     <form method="POST" class="inline">
+                                                         <input type="hidden" name="action" value="toggle_status">
+                                                         <input type="hidden" name="player_id" value="<?php echo $p['id']; ?>">
+                                                         <button type="submit" class="text-xs text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
+                                                             <?php echo __('toggle_alive_dead'); ?>
+                                                         </button>
+                                                     </form>
+                                                 <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -1252,6 +1279,19 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                         `;
                                     }
 
+                                    let setupRemoveButton = "";
+                                    if (!data.roles_shared) {
+                                        let removeLabel = "<?php echo get_current_lang() === 'ku' ? 'ژێبرن' : (get_current_lang() === 'ar' ? 'حذف' : 'Remove'); ?>";
+                                        setupRemoveButton = `
+                                            <form method="POST" class="inline">
+                                                <input type="hidden" name="action" value="remove_player_setup">
+                                                <input type="hidden" name="player_id" value="${p.id}">
+                                                <button type="submit" class="text-xs text-rose-400 hover:text-white bg-rose-950/60 px-2.5 py-1 rounded border border-rose-900/60 transition">
+                                                    ${removeLabel}
+                                                </button>
+                                            </form>
+                                        `;
+                                    }
                                     let roleTranslated = i18nRoles[p.role] || p.role;
 
                                     html += `
@@ -1261,6 +1301,8 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                             <td class="p-3"><span class="text-xs font-bold ${statusClass}">${statusText}</span></td>
                                             <td class="p-3 text-right rtl:text-left space-x-2 flex flex-wrap justify-end gap-1">
                                                 ${kickButton}
+                                                ${setupRemoveButton}
+                                                ${data.roles_shared ? `
                                                 <form method="POST" class="inline">
                                                     <input type="hidden" name="action" value="toggle_status">
                                                     <input type="hidden" name="player_id" value="${p.id}">
@@ -1268,6 +1310,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                                         ${i18nTxt.toggle}
                                                     </button>
                                                 </form>
+                                                ` : ""}
                                             </td>
                                         </tr>
                                     `;
