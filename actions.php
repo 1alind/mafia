@@ -55,24 +55,28 @@ if (isset($_GET['ajax']) || (isset($_GET['action']) && $_GET['action'] === 'get_
 function evaluate_investigation($target_name, $db) {
     $target_role = null;
     foreach ($db['players'] as $p) {
-        if ($p['name'] === $target_name) {
-            $target_role = $p['role'] ?? '';
+        if (trim($p['name']) === trim($target_name)) {
+            $target_role = trim($p['role'] ?? '');
             break;
         }
     }
+    
+    file_put_contents('debug.log', "Target: $target_name, Found Role: $target_role\n", FILE_APPEND);
 
     if (!$target_role) return 'Citizen';
 
-    // Base identity: Mafia Boss & Deceiver appear as Citizen
+    // Base identity: Mafia Boss appears as Citizen, Deceiver appears as Mafia
     if ($target_role === 'Mafia Boss') {
         $res = 'Citizen';
     } elseif ($target_role === 'Deceiver') {
-        $res = 'Citizen';
+        $res = 'Mafia';
     } elseif (in_array($target_role, ['Mafia Doctor', 'Regular Mafia'])) {
         $res = 'Mafia';
     } else {
         $res = 'Citizen';
     }
+    
+    file_put_contents('debug.log', "Target: $target_name, Role: $target_role, Base Res: $res\n", FILE_APPEND);
 
     // Deceiver's night action effect on investigator results:
     // Deceiver can switch perceived role of any player EXCLUDING Mafia Boss, ONLY if Deceiver is alive!
@@ -85,7 +89,7 @@ function evaluate_investigation($target_name, $db) {
     }
     if ($deceiver_alive) {
         $deceiver_target = $db['night_actions']['Deceiver'] ?? null;
-        if ($deceiver_target && $deceiver_target === $target_name) {
+        if ($deceiver_target && trim($deceiver_target) === trim($target_name)) {
             if ($target_role !== 'Mafia Boss') {
                 $res = ($res === 'Mafia') ? 'Citizen' : 'Mafia';
             }
@@ -398,6 +402,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             terminate_request("index.php");
         }
 
+        if ($action === 'submit_all_night_actions') {
+            $actions = json_decode($_POST['actions'], true);
+            foreach ($actions as $role => $target_id) {
+                $target_name = null;
+                if ($target_id !== '') {
+                    foreach ($db['players'] as $p) {
+                        if ($p['id'] === $target_id) {
+                            $target_name = $p['name'];
+                            break;
+                        }
+                    }
+                }
+                if ($target_name) {
+                    $db['night_actions'][$role] = $target_name;
+                } else {
+                    unset($db['night_actions'][$role]);
+                }
+            }
+            
+            // Always recalculate investigation result if Investigator target is selected
+            $investigator_target = $db['night_actions']['Investigator'] ?? null;
+            if ($investigator_target) {
+                $eval_res = evaluate_investigation($investigator_target, $db);
+                $db['investigation_results'] = [
+                    ['target' => $investigator_target, 'result' => $eval_res]
+                ];
+            } else {
+                $db['investigation_results'] = [];
+            }
+            
+            save_db($db);
+            header('Content-Type: application/json');
+            echo json_encode($db);
+            exit;
+        }
+
         if ($action === 'answer_grave_keeper_reveal') {
             $answer = $_POST['reveal_answer'] ?? 'no';
 
@@ -655,11 +695,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $investigator_target = $db['night_actions']['Investigator'] ?? null;
                 if ($investigator_target) {
                     $eval_res = evaluate_investigation($investigator_target, $db);
+                    $target_role = '';
+                    foreach($db['players'] as $p) { if ($p['name'] === $investigator_target) $target_role = $p['role'] ?? ''; }
                     $role_lbl_en = ($eval_res === 'Mafia') ? 'Mafia' : 'Citizen';
                     $role_lbl_ku = ($eval_res === 'Mafia') ? 'مافیا' : 'وەلاتی';
                     $role_lbl_ar = ($eval_res === 'Mafia') ? 'مافيا' : 'مواطن';
                     $diary[] = [
-                        'en' => "• 🔍 <strong>Investigator</strong> checked <strong class='text-amber-400'>$investigator_target</strong> and found them as: <strong class='text-white underline'>$role_lbl_en</strong>.",
+                        'en' => "• 🔍 <strong>Investigator</strong> checked <strong class='text-amber-400'>$investigator_target</strong> (Role: $target_role) and found them as: <strong class='text-white underline'>$role_lbl_en</strong>.",
                         'ku' => "• 🔍 <strong>ڤەکولەر</strong> ل سەر <strong class='text-amber-400'>$investigator_target</strong> لێکۆڵینەوە کر و دیت کو ئەو یێ دیارە وەک: <strong class='text-white underline'>$role_lbl_ku</strong>.",
                         'ar' => "• 🔍 <strong>المحقق</strong> كشف على <strong class='text-amber-400'>$investigator_target</strong> وظهر له كـ: <strong class='text-white underline'>$role_lbl_ar</strong>."
                     ];

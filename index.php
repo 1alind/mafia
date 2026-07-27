@@ -279,6 +279,34 @@ document.addEventListener('submit', async function(e) {
             formData.append(e.submitter.name, e.submitter.value);
         }
         
+        // Handle record_night_target locally
+        if (formData.get('action') === 'record_night_target') {
+            if (!window.localNightActions) window.localNightActions = {};
+            window.localNightActions[formData.get('role')] = formData.get('target_id');
+            console.log('Action stored locally:', window.localNightActions);
+            const btn = e.target.querySelector('button');
+            if (btn) {
+                const originalText = btn.innerText;
+                btn.innerText = '✅ Saved';
+                setTimeout(() => btn.innerText = originalText, 2000);
+            }
+            return;
+        }
+
+        // Special handling for Next Phase to submit local actions
+        if (formData.get('action') === 'next_phase' && window.localNightActions && Object.keys(window.localNightActions).length > 0) {
+             const bulkFormData = new FormData();
+             bulkFormData.append('action', 'submit_all_night_actions');
+             bulkFormData.append('actions', JSON.stringify(window.localNightActions));
+             bulkFormData.append('ajax', '1');
+             
+             await fetch(window.location.href, {
+                 method: 'POST',
+                 body: bulkFormData
+             });
+             window.localNightActions = {}; // Clear after successful submit
+        }
+        
         const response = await fetch(window.location.href, {
             method: 'POST',
             body: formData
