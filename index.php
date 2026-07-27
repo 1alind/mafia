@@ -686,7 +686,7 @@ document.addEventListener('click', function(e) {
                         $call_grave_keeper_tonight = ($has_grave_keeper && !$is_gk_dead && $gk_charges > 0);
 
                         foreach ($all_game_roles as $role): 
-                            if (in_array($role, ['Citizen', 'Mirhas', 'Regular Mafia'])) continue;
+                            if (in_array($role, ['Judge', 'Citizen', 'Mirhas', 'Regular Mafia'])) continue;
                             
                             if ($role === 'Grave Keeper') {
                                 if (!$call_grave_keeper_tonight) continue; 
