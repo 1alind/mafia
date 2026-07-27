@@ -284,12 +284,23 @@ document.addEventListener('submit', async function(e) {
             if (!window.localNightActions) window.localNightActions = {};
             window.localNightActions[formData.get('role')] = formData.get('target_id');
             console.log('Action stored locally:', window.localNightActions);
-            const btn = e.target.querySelector('button');
+            
+            const btn = e.target.querySelector('button[type="submit"]');
             if (btn) {
                 const originalText = btn.innerText;
                 btn.innerText = '✅ Saved';
                 setTimeout(() => btn.innerText = originalText, 2000);
             }
+            
+            const targetSelect = e.target.querySelector('.target-select');
+            const targetName = targetSelect.options[targetSelect.selectedIndex].text;
+            const targetDisplay = e.target.querySelector('.target-display');
+            if (targetDisplay) {
+                targetDisplay.innerText = targetSelect.value !== '' ? `Target: ${targetName.trim()}` : '';
+            }
+            const cancelBtn = e.target.querySelector('.cancel-btn');
+            if (cancelBtn) cancelBtn.classList.remove('hidden');
+            
             return;
         }
 
@@ -305,12 +316,18 @@ document.addEventListener('submit', async function(e) {
                  body: bulkFormData
              });
              window.localNightActions = {}; // Clear after successful submit
+             pollHost(); // Update UI after night actions submitted
         }
         
         const response = await fetch(window.location.href, {
             method: 'POST',
             body: formData
         });
+        
+        // Trigger pollHost after any other action, specifically next_phase
+        if (formData.get('action') === 'next_phase') {
+             pollHost(); // Update UI after next_phase
+        }
         
         if (response.ok) {
             console.log('Form submitted successfully');
@@ -744,6 +761,9 @@ document.addEventListener('submit', async function(e) {
                                             <button type="button" onclick="cancelNightAction('<?php echo $role; ?>')" class="cancel-btn bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold text-xs px-3 py-2 rounded uppercase tracking-wider transition <?php echo $recorded_target ? '' : 'hidden'; ?>" title="<?php echo __('cancel'); ?>">
                                                 <?php echo __('cancel'); ?>
                                             </button>
+                                        </div>
+                                        <div class="target-display text-xs text-emerald-400 mt-2 font-bold text-center italic">
+                                            <?php if ($recorded_target): ?>Target: <?php echo htmlspecialchars($recorded_target); ?><?php endif; ?>
                                         </div>
                                     <?php endif; ?>
                                 </form>
@@ -1691,7 +1711,7 @@ document.addEventListener('submit', async function(e) {
                         });
                 }
 
-                setInterval(pollHost, 2000);
+                // setInterval(pollHost, 2000);
 
                 // AJAX handler for night actions without full page reload
                 function handleNightActionSubmit(event, role) {
@@ -1722,6 +1742,26 @@ document.addEventListener('submit', async function(e) {
                 }
 
                 function cancelNightAction(role) {
+                    // Update local storage
+                    if (window.localNightActions) {
+                        window.localNightActions[role] = '';
+                    }
+
+                    // Update UI
+                    const forms = document.querySelectorAll('form');
+                    for (let form of forms) {
+                        const roleInput = form.querySelector('input[name="role"]');
+                        if (roleInput && roleInput.value === role) {
+                            const targetDisplay = form.querySelector('.target-display');
+                            if (targetDisplay) targetDisplay.innerText = '';
+                            const cancelBtn = form.querySelector('.cancel-btn');
+                            if (cancelBtn) cancelBtn.classList.add('hidden');
+                            const targetSelect = form.querySelector('.target-select');
+                            if (targetSelect) targetSelect.value = '';
+                            break;
+                        }
+                    }
+
                     const formData = new FormData();
                     formData.append('action', 'record_night_target');
                     formData.append('role', role);
