@@ -264,10 +264,14 @@ hr {
 console.log("Mafia Game Client initialized");
 
 // Placeholder for WebSocket implementation
-const socket = new WebSocket('ws://' + window.location.host + '/ws');
-socket.onopen = () => console.log('WebSocket connected');
-socket.onmessage = (event) => console.log('WebSocket message:', event.data);
-socket.onclose = () => console.log('WebSocket disconnected');
+try {
+    const socket = new WebSocket('ws://' + window.location.host + '/ws');
+    socket.onopen = () => console.log('WebSocket connected');
+    socket.onmessage = (event) => console.log('WebSocket message:', event.data);
+    socket.onclose = () => console.log('WebSocket disconnected');
+} catch (e) {
+    console.warn("WebSocket initialization failed: ", e);
+}
 
 document.addEventListener('submit', async function(e) {
     if (e.target.tagName === 'FORM') {
@@ -293,10 +297,13 @@ document.addEventListener('submit', async function(e) {
             }
             
             const targetSelect = e.target.querySelector('.target-select');
-            const targetName = targetSelect.options[targetSelect.selectedIndex].text;
+            let targetName = '';
+            if (targetSelect && targetSelect.selectedIndex !== -1) {
+                targetName = targetSelect.options[targetSelect.selectedIndex].text;
+            }
             const targetDisplay = e.target.querySelector('.target-display');
             if (targetDisplay) {
-                targetDisplay.innerText = targetSelect.value !== '' ? `Target: ${targetName.trim()}` : '';
+                targetDisplay.innerText = (targetSelect && targetSelect.value !== '') ? `Target: ${targetName.trim()}` : '';
             }
             const cancelBtn = e.target.querySelector('.cancel-btn');
             if (cancelBtn) cancelBtn.classList.remove('hidden');
@@ -314,9 +321,11 @@ document.addEventListener('submit', async function(e) {
              await fetch(window.location.href, {
                  method: 'POST',
                  body: bulkFormData
-             });
+              });
              window.localNightActions = {}; // Clear after successful submit
-             pollHost(); // Update UI after night actions submitted
+             if (typeof pollHost === 'function') {
+                 pollHost(); // Update UI after night actions submitted
+             }
         }
         
         const response = await fetch(window.location.href, {
@@ -326,7 +335,15 @@ document.addEventListener('submit', async function(e) {
         
         // Trigger pollHost after any other action, specifically next_phase
         if (formData.get('action') === 'next_phase') {
-             pollHost(); // Update UI after next_phase
+             if (typeof pollHost === 'function') {
+                 pollHost(); // Update UI after next_phase
+             }
+        }
+        
+        // If it's a claim_host action, reload the page to ensure the dashboard is loaded
+        if (formData.get('action') === 'claim_host') {
+            window.location.reload();
+            return;
         }
         
         if (response.ok) {
@@ -336,10 +353,12 @@ document.addEventListener('submit', async function(e) {
             const doc = parser.parseFromString(html, 'text/html');
             
             // Only update the container content to avoid full page reload feel
-            const newContainer = doc.querySelector('.container');
-            const currentContainer = document.querySelector('.container');
+            const newContainer = doc.getElementById('main-container');
+            const currentContainer = document.getElementById('main-container');
             if (newContainer && currentContainer) {
                 currentContainer.innerHTML = newContainer.innerHTML;
+            } else {
+                window.location.reload();
             }
         }
     }
@@ -358,7 +377,7 @@ document.addEventListener('submit', async function(e) {
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-6 font-sans">
     
-    <div class="max-w-6xl mx-auto space-y-6">
+    <div id="main-container" class="max-w-6xl mx-auto space-y-6">
 
         <?php
             $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
