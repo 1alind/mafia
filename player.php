@@ -491,14 +491,7 @@ socket.onclose = () => console.log('WebSocket disconnected');
                                 lastResetToken = dbData.reset_token;
                                 localStorage.setItem('mafia_reset_token', lastResetToken);
                                 localStorage.removeItem('mafia_role_revealed_' + myPlayerId);
-                                stopPolling();
-                                fetch(window.location.href)
-                                    .then(res => res.text())
-                                    .then(html => {
-                                        const parser = new DOMParser();
-                                        const doc = parser.parseFromString(html, 'text/html');
-                                        if (doc.body) document.body.innerHTML = doc.body.innerHTML;
-                                    });
+                                window.location.reload();
                                 return;
                             }
 
@@ -511,9 +504,8 @@ socket.onclose = () => console.log('WebSocket disconnected');
                             const currentPlayer = dbData.players ? dbData.players.find(p => p.id === myPlayerId) : null;
 
                             if (currentPlayer && dbData.roles_shared && currentPlayer.role && currentPlayer.role !== 'Pending') {
-                                // Roles are now shared! Reveal the role and STOP POLLING immediately!
+                                // Roles are now shared! Reveal the role
                                 startLocalCountdown(currentPlayer.role);
-                                stopPolling(); // STOP ALL SERVER REQUESTS
                             }
                         })
                         .catch(err => {
@@ -618,6 +610,10 @@ socket.onclose = () => console.log('WebSocket disconnected');
                 // --- INITIAL LOAD LOGIC ---
                 document.addEventListener('DOMContentLoaded', () => {
                     updateMuteUI();
+                    if (myPlayerId) {
+                        stopPolling();
+                        pollTimer = setInterval(pollPlayer, 1500);
+                    }
                 });
 
                 // Helper to get cookie value
@@ -665,16 +661,10 @@ socket.onclose = () => console.log('WebSocket disconnected');
                                 return;
                             }
 
-                            // If they registered successfully (join_game) or reset, update page dynamically
+                            // If they registered successfully (join_game) or reset, perform a clean page reload
                             const actionInput = form.querySelector('input[name="action"]');
                             if (actionInput && (actionInput.value === 'join_game' || actionInput.value === 'hard_reset' || actionInput.value === 'reset_session')) {
-                                fetch(window.location.href)
-                                    .then(res => res.text())
-                                    .then(html => {
-                                        const parser = new DOMParser();
-                                        const doc = parser.parseFromString(html, 'text/html');
-                                        if (doc.body) document.body.innerHTML = doc.body.innerHTML;
-                                    });
+                                window.location.reload();
                                 return;
                             }
 
