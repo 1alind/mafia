@@ -1282,11 +1282,112 @@ document.addEventListener('submit', async function(e) {
                             <?php endif; ?>
                         <?php endif; ?>
                     </div>
+
+                    <!-- Host Server Requests & Ping Log Box -->
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3 shadow-lg">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                            <div class="flex items-center gap-2">
+                                <span class="relative flex h-2.5 w-2.5">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                </span>
+                                <h3 class="text-xs font-black uppercase tracking-wider text-slate-200">
+                                    📡 <?php echo get_current_lang() === 'ku' ? 'لۆگا پەیوەندیێن مێهڤاندار ب سێرڤەری ڤە' : (get_current_lang() === 'ar' ? 'سجل طلبات واستجابات السيرفر للمضيف' : 'Host Server Pings & Requests Log'); ?>
+                                </h3>
+                            </div>
+                            <button type="button" onclick="clearServerHitLogs()" class="text-[10px] text-slate-400 hover:text-white bg-slate-800 px-2 py-0.5 rounded border border-slate-700 transition">
+                                Clear
+                            </button>
+                        </div>
+                        <div id="server-hit-logs" class="bg-slate-950 p-3 rounded-lg border border-slate-850 font-mono text-slate-300 max-h-60 overflow-y-auto space-y-1">
+                            <div class="placeholder-text text-slate-500 italic text-center py-3">Monitoring host server requests...</div>
+                        </div>
+                    </div>
                 </div>
 
             </div>
 
             <script>
+                // --- SERVER TRAFFIC & PING LOGGER ---
+                (function() {
+                    const originalFetch = window.fetch;
+                    window.fetch = async function(...args) {
+                        const startTime = Date.now();
+                        const timeStr = new Date().toLocaleTimeString();
+                        let url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : 'server');
+                        let method = 'GET';
+                        let actionName = '';
+
+                        if (args[1] && args[1].method) {
+                            method = args[1].method.toUpperCase();
+                        }
+
+                        if (args[1] && args[1].body instanceof FormData) {
+                            actionName = args[1].body.get('action') || '';
+                        } else if (url.includes('actions.php?ajax=1')) {
+                            actionName = 'poll_sync';
+                        }
+
+                        try {
+                            const response = await originalFetch.apply(this, args);
+                            const duration = Date.now() - startTime;
+                            logServerHitUI(timeStr, method, url, actionName, response.status, response.statusText, duration, response.ok);
+                            return response;
+                        } catch (err) {
+                            const duration = Date.now() - startTime;
+                            logServerHitUI(timeStr, method, url, actionName, 'ERR', err.message || 'Error', duration, false);
+                            throw err;
+                        }
+                    };
+                })();
+
+                function logServerHitUI(timeStr, method, url, actionName, status, statusText, duration, isOk) {
+                    const container = document.getElementById('server-hit-logs');
+                    if (!container) return;
+
+                    const placeholder = container.querySelector('.placeholder-text');
+                    if (placeholder) {
+                        placeholder.remove();
+                    }
+
+                    const entry = document.createElement('div');
+                    entry.className = 'border-b border-slate-900 pb-1.5 pt-1 flex items-center justify-between gap-2 text-[11px] leading-tight';
+
+                    let icon = isOk ? '🟢' : '🔴';
+                    let badgeClass = isOk ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800' : 'bg-rose-950/80 text-rose-400 border-rose-800';
+                    let shortUrl = url.split('/').pop().split('?')[0] || url;
+                    if (url.includes('actions.php')) shortUrl = 'actions.php';
+                    let actionBadge = actionName ? `<span class="text-amber-300 font-bold ml-1">(${actionName})</span>` : '';
+
+                    entry.innerHTML = `
+                        <div class="flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap">
+                            <span>${icon}</span>
+                            <span class="text-slate-500 font-mono">[${timeStr}]</span>
+                            <span class="font-bold text-sky-400">${method}</span>
+                            <span class="text-slate-300 font-medium">${shortUrl}</span>
+                            ${actionBadge}
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="px-1.5 py-0.2 rounded border font-mono font-bold ${badgeClass}">${status}</span>
+                            <span class="text-slate-500 text-[10px] font-mono">${duration}ms</span>
+                        </div>
+                    `;
+
+                    container.prepend(entry);
+
+                    // Keep up to 60 logs
+                    while (container.children.length > 60) {
+                        container.removeChild(container.lastChild);
+                    }
+                }
+
+                function clearServerHitLogs() {
+                    const container = document.getElementById('server-hit-logs');
+                    if (container) {
+                        container.innerHTML = '<div class="placeholder-text text-slate-500 italic text-center py-3">Monitoring host server requests...</div>';
+                    }
+                }
+
                 const i18nRoles = <?php echo json_encode($role_i18n_map); ?>;
                 const i18nTxt = {
                     noPlayers: <?php echo json_encode(__('no_players_registered')); ?>,
@@ -1370,20 +1471,19 @@ document.addEventListener('submit', async function(e) {
                                 break;
                                 
                             case 'alarm':
-                                // Repeating ringing alarm
-                                for (let i = 0; i < 4; i++) {
-                                    const time = now + (i * 0.25);
+                                // Loud ringing alarm bell effect when timer expires
+                                for (let i = 0; i < 16; i++) {
+                                    const time = now + (i * 0.12);
                                     const osc = ctx.createOscillator();
                                     const gain = ctx.createGain();
-                                    osc.type = 'square';
-                                    osc.frequency.setValueAtTime(880, time);
-                                    osc.frequency.setValueAtTime(1760, time + 0.1);
-                                    gain.gain.setValueAtTime(0.1, time);
-                                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+                                    osc.type = 'sawtooth';
+                                    osc.frequency.setValueAtTime(i % 2 === 0 ? 1046.50 : 1318.51, time); // C6 & E6
+                                    gain.gain.setValueAtTime(0.35, time);
+                                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.11);
                                     osc.connect(gain);
                                     gain.connect(ctx.destination);
                                     osc.start(time);
-                                    osc.stop(time + 0.2);
+                                    osc.stop(time + 0.11);
                                 }
                                 break;
                                 
@@ -1426,20 +1526,7 @@ document.addEventListener('submit', async function(e) {
                                 break;
                                 
                             case 'click':
-                                // Subtle mechanical interface click
-                                {
-                                    const osc = ctx.createOscillator();
-                                    const gain = ctx.createGain();
-                                    osc.type = 'sine';
-                                    osc.frequency.setValueAtTime(600, now);
-                                    osc.frequency.exponentialRampToValueAtTime(200, now + 0.03);
-                                    gain.gain.setValueAtTime(0.03, now);
-                                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
-                                    osc.connect(gain);
-                                    gain.connect(ctx.destination);
-                                    osc.start(now);
-                                    osc.stop(now + 0.04);
-                                }
+                                // Click sound disabled per user request
                                 break;
                         }
                     } catch (e) {
@@ -1455,9 +1542,6 @@ document.addEventListener('submit', async function(e) {
                     
                     // Activate Context on first toggle to bypass browser autoplays blocking
                     getAudioContext();
-                    if (!newMuted) {
-                        playSound('click');
-                    }
                 }
 
                 function updateMuteUI() {
@@ -1512,7 +1596,6 @@ document.addEventListener('submit', async function(e) {
                 }
 
                 function toggleTimer() {
-                    playSound('click');
                     let isRunning = localStorage.getItem('mafia_timer_running') === 'true';
                     if (isRunning) {
                         pauseTimer();
@@ -1563,14 +1646,12 @@ document.addEventListener('submit', async function(e) {
                 }
 
                 function resetTimer() {
-                    playSound('click');
                     pauseTimer();
                     saveRemainingSeconds(defaultDuration);
                     updateTimerDisplay();
                 }
 
                 function setTimerPreset(sec) {
-                    playSound('click');
                     pauseTimer();
                     defaultDuration = sec;
                     saveRemainingSeconds(sec);
@@ -1599,17 +1680,6 @@ document.addEventListener('submit', async function(e) {
                         updateTimerDisplay();
                     }
                 }
-
-                // Auto-hook click events for standard buttons for tactile feedback
-                document.addEventListener('click', (e) => {
-                    const tag = e.target.tagName.toLowerCase();
-                    if (tag === 'button' || (tag === 'input' && e.target.type === 'submit') || e.target.closest('a')) {
-                        // Exclude mute and timer buttons to avoid double clicking sounds
-                        if (e.target.id !== 'mute-btn' && !e.target.closest('#mute-btn') && e.target.id !== 'timer-play-btn' && !e.target.closest('#timer-play-btn') && !e.target.closest('[onclick^="setTimerPreset"]') && !e.target.closest('[onclick^="resetTimer"]')) {
-                            playSound('click');
-                        }
-                    }
-                });
 
                 // ON LOAD BOOTSTRAP FOR AUDIO AND TIMER
                 document.addEventListener('DOMContentLoaded', () => {
@@ -1724,15 +1794,17 @@ document.addEventListener('submit', async function(e) {
                             }
 
                             const logsContainer = document.getElementById('logs-container');
-                            let logsHtml = '';
-                            [...data.logs].reverse().forEach(log => {
-                                logsHtml += `<div class="border-b border-slate-900 pb-1">${log}</div>`;
-                            });
-                            logsContainer.innerHTML = logsHtml;
+                            if (logsContainer) {
+                                let logsHtml = '';
+                                [...data.logs].reverse().forEach(log => {
+                                    logsHtml += `<div class="border-b border-slate-900 pb-1">${log}</div>`;
+                                });
+                                logsContainer.innerHTML = logsHtml;
+                            }
                         });
                 }
 
-                // setInterval(pollHost, 2000);
+                setInterval(pollHost, 3000);
 
                 // Helper to save action locally and show save feedback on button
                 function saveLocalNightAction(role, targetId, form) {

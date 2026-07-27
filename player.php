@@ -559,38 +559,24 @@ socket.onclose = () => console.log('WebSocket disconnected');
                     try {
                         switch (type) {
                             case 'alarm':
-                                // Repeating ringing alarm
-                                for (let i = 0; i < 4; i++) {
-                                    const time = now + (i * 0.25);
+                                // Loud ringing alarm bell effect when timer expires
+                                for (let i = 0; i < 16; i++) {
+                                    const time = now + (i * 0.12);
                                     const osc = ctx.createOscillator();
                                     const gain = ctx.createGain();
-                                    osc.type = 'square';
-                                    osc.frequency.setValueAtTime(880, time);
-                                    osc.frequency.setValueAtTime(1760, time + 0.1);
-                                    gain.gain.setValueAtTime(0.1, time);
-                                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+                                    osc.type = 'sawtooth';
+                                    osc.frequency.setValueAtTime(i % 2 === 0 ? 1046.50 : 1318.51, time); // C6 & E6
+                                    gain.gain.setValueAtTime(0.35, time);
+                                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.11);
                                     osc.connect(gain);
                                     gain.connect(ctx.destination);
                                     osc.start(time);
-                                    osc.stop(time + 0.2);
+                                    osc.stop(time + 0.11);
                                 }
                                 break;
                                 
                             case 'click':
-                                // Mechanical click
-                                {
-                                    const osc = ctx.createOscillator();
-                                    const gain = ctx.createGain();
-                                    osc.type = 'sine';
-                                    osc.frequency.setValueAtTime(600, now);
-                                    osc.frequency.exponentialRampToValueAtTime(200, now + 0.03);
-                                    gain.gain.setValueAtTime(0.03, now);
-                                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
-                                    osc.connect(gain);
-                                    gain.connect(ctx.destination);
-                                    osc.start(now);
-                                    osc.stop(now + 0.04);
-                                }
+                                // Click sound disabled per user request
                                 break;
                         }
                     } catch (e) {
@@ -605,9 +591,6 @@ socket.onclose = () => console.log('WebSocket disconnected');
                     updateMuteUI();
                     
                     getAudioContext();
-                    if (!newMuted) {
-                        playSound('click');
-                    }
                 }
 
                 function updateMuteUI() {
@@ -625,16 +608,6 @@ socket.onclose = () => console.log('WebSocket disconnected');
                         if (muteText) muteText.innerText = isKu ? 'دەنگ: کارا' : (isAr ? 'الصوت: مفعّل' : 'Sounds: ON');
                     }
                 }
-
-                // Auto-click feedback
-                document.addEventListener('click', (e) => {
-                    const tag = e.target.tagName.toLowerCase();
-                    if (tag === 'button' || (tag === 'input' && e.target.type === 'submit') || e.target.closest('a')) {
-                        if (e.target.id !== 'mute-btn' && !e.target.closest('#mute-btn')) {
-                            playSound('click');
-                        }
-                    }
-                });
 
                 // --- INITIAL LOAD LOGIC ---
                 document.addEventListener('DOMContentLoaded', () => {
