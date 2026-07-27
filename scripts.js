@@ -93,9 +93,9 @@ document.addEventListener('submit', async function(e) {
             if (response.ok) {
                 console.log('Form submitted successfully via AJAX');
                 
-                // If this is a rematch, reset, or session reset, perform a clean full page reload!
+                // If this is a rematch, reset, session reset, share roles, or claim host, perform a clean full page reload!
                 const actionValue = formData.get('action');
-                if (actionValue === 'hide_roles' || actionValue === 'hard_reset' || actionValue === 'reset_session') {
+                if (actionValue === 'hide_roles' || actionValue === 'hard_reset' || actionValue === 'reset_session' || actionValue === 'share_roles' || actionValue === 'claim_host') {
                     window.location.reload();
                     return;
                 }
@@ -1739,19 +1739,7 @@ document.addEventListener('click', function(e) {
                                 lastGraveRevealState = data.grave_keeper_revealed_roles;
                                 lastGraveChargesState = data.grave_keeper_charges;
 
-                                fetch(window.location.href)
-                                    .then(res => res.text())
-                                    .then(html => {
-                                        const parser = new DOMParser();
-                                        const doc = parser.parseFromString(html, 'text/html');
-                                        const newContainer = doc.getElementById('main-container');
-                                        const currentContainer = document.getElementById('main-container');
-                                        if (newContainer && currentContainer) {
-                                            currentContainer.innerHTML = newContainer.innerHTML;
-                                        } else if (doc.body) {
-                                            document.body.innerHTML = doc.body.innerHTML;
-                                        }
-                                    });
+                                window.location.reload();
                                 return;
                             }
 
