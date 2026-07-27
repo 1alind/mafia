@@ -363,22 +363,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($action === 'record_night_target') {
             $role = $_POST['role'] ?? '';
-            $target_id = $_POST['target_id'] ?? '';
-            $target_name = null;
+            $target_id = $_POST['target_id'] ?? $_POST['reveal_answer'] ?? '';
 
-            if ($target_id !== '') {
+            if ($role === 'Grave Keeper') {
+                $answer = $target_id;
+                $is_gk_dead = false;
                 foreach ($db['players'] as $p) {
-                    if ($p['id'] === $target_id) {
-                        $target_name = $p['name'];
+                    if (($p['role'] ?? '') === 'Grave Keeper') {
+                        if ($p['status'] === 'dead' || in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                            $is_gk_dead = true;
+                        }
                         break;
                     }
                 }
-            }
 
-            if ($target_name) {
-                $db['night_actions'][$role] = $target_name;
+                if ($is_gk_dead) {
+                    $answer = 'no';
+                }
+
+                if ($answer === 'yes') {
+                    $db['grave_keeper_reveal_pending'] = true;
+                    if (($db['grave_keeper_charges'] ?? 2) > 0) {
+                        $db['grave_keeper_charges'] = ($db['grave_keeper_charges'] ?? 2) - 1;
+                        $db['gravedigger_charges'] = $db['grave_keeper_charges'];
+                    }
+                } else {
+                    $db['grave_keeper_reveal_pending'] = false;
+                }
+                $db['grave_keeper_revealed_roles'] = false;
+                $db['grave_keeper_acted_tonight'] = true;
+                $db['night_actions']['Grave Keeper'] = $answer;
             } else {
-                unset($db['night_actions'][$role]);
+                $target_name = null;
+
+                if ($target_id !== '') {
+                    foreach ($db['players'] as $p) {
+                        if ($p['id'] === $target_id) {
+                            $target_name = $p['name'];
+                            break;
+                        }
+                    }
+                }
+
+                if ($target_name) {
+                    $db['night_actions'][$role] = $target_name;
+                } else {
+                    unset($db['night_actions'][$role]);
+                }
             }
 
             // Always recalculate investigation result if Investigator target is selected
@@ -405,6 +436,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if ($action === 'submit_all_night_actions') {
             $actions = json_decode($_POST['actions'], true);
             foreach ($actions as $role => $target_id) {
+                if ($role === 'Grave Keeper') {
+                    $answer = $target_id;
+                    $is_gk_dead = false;
+                    foreach ($db['players'] as $p) {
+                        if (($p['role'] ?? '') === 'Grave Keeper') {
+                            if ($p['status'] === 'dead' || in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                                $is_gk_dead = true;
+                            }
+                            break;
+                        }
+                    }
+
+                    if ($is_gk_dead) {
+                        $answer = 'no';
+                    }
+
+                    if ($answer === 'yes') {
+                        $db['grave_keeper_reveal_pending'] = true;
+                        if (($db['grave_keeper_charges'] ?? 2) > 0) {
+                            $db['grave_keeper_charges'] = ($db['grave_keeper_charges'] ?? 2) - 1;
+                            $db['gravedigger_charges'] = $db['grave_keeper_charges'];
+                        }
+                    } else {
+                        $db['grave_keeper_reveal_pending'] = false;
+                    }
+                    $db['grave_keeper_revealed_roles'] = false;
+                    $db['grave_keeper_acted_tonight'] = true;
+                    $db['night_actions']['Grave Keeper'] = $answer;
+                    continue;
+                }
+
                 $target_name = null;
                 if ($target_id !== '') {
                     foreach ($db['players'] as $p) {

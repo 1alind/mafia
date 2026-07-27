@@ -284,9 +284,13 @@ document.addEventListener('submit', async function(e) {
         }
         
         // Handle record_night_target locally
-        if (formData.get('action') === 'record_night_target') {
+        if (formData.get('action') === 'record_night_target' || formData.get('action') === 'answer_grave_keeper_reveal') {
             if (!window.localNightActions) window.localNightActions = {};
-            window.localNightActions[formData.get('role')] = formData.get('target_id');
+            const role = formData.get('role') || 'Grave Keeper';
+            const val = formData.get('target_id') || formData.get('reveal_answer') || '';
+            if (val !== '') {
+                window.localNightActions[role] = val;
+            }
             console.log('Action stored locally:', window.localNightActions);
             
             const btn = e.target.querySelector('button[type="submit"]');
@@ -713,9 +717,10 @@ document.addEventListener('submit', async function(e) {
 
                                 <form onsubmit="handleNightActionSubmit(event, '<?php echo $role; ?>')" class="space-y-2">
                                     <?php if ($role === 'Grave Keeper'): ?>
-                                        <input type="hidden" name="action" value="answer_grave_keeper_reveal">
+                                        <input type="hidden" name="action" value="record_night_target">
+                                        <input type="hidden" name="role" value="Grave Keeper">
                                         <div class="space-y-2 <?php echo $gk_acted_tonight ? 'hidden' : ''; ?>" id="gk-buttons-container">
-                                            <select name="reveal_answer" class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded p-2 focus:outline-none focus:border-rose-500">
+                                            <select name="target_id" class="target-select w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded p-2 focus:outline-none focus:border-rose-500">
                                                 <option value=""><?php echo __('make_selection'); ?></option>
                                                 <?php 
                                                 $lang = get_current_lang();
@@ -731,9 +736,14 @@ document.addEventListener('submit', async function(e) {
                                                 <?php endif; ?>
                                                 <option value="no"><?php echo __('gk_option_no'); ?></option>
                                             </select>
-                                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 rounded uppercase tracking-wider transition shadow">
-                                                <?php echo __('confirm_decision'); ?>
-                                            </button>
+                                            <div class="flex gap-2">
+                                                <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 rounded uppercase tracking-wider transition shadow">
+                                                    <?php echo __('confirm_decision'); ?>
+                                                </button>
+                                                <button type="button" onclick="cancelNightAction('Grave Keeper')" class="cancel-btn bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold text-xs px-3 py-2 rounded uppercase tracking-wider transition hidden" title="<?php echo __('cancel'); ?>">
+                                                    <?php echo __('cancel'); ?>
+                                                </button>
+                                            </div>
                                         </div>
                                         <?php if ($gk_acted_tonight): ?>
                                             <div class="text-xs text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded border border-emerald-900 text-center">
@@ -1992,10 +2002,10 @@ document.addEventListener('submit', async function(e) {
 
                 // Unique function for Grave Keeper night action
                 function handleGraveKeeperNightAction(card, targetSelect, role, form) {
-                    const formData = new FormData(form);
-                    const answer = formData.get('reveal_answer') || 'no';
+                    const targetId = targetSelect ? targetSelect.value : '';
+                    if (targetId === '') return;
                     
-                    saveLocalNightAction(role, answer, form);
+                    saveLocalNightAction(role, targetId, form);
                     
                     const gkButtons = card.querySelector('#gk-buttons-container');
                     if (gkButtons) gkButtons.classList.add('hidden');
@@ -2005,13 +2015,18 @@ document.addEventListener('submit', async function(e) {
                         statusBadge.className = "status-badge text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-bold uppercase";
                         statusBadge.innerText = i18nTxt.decided || 'Decided';
                     }
+
+                    const cancelBtn = card.querySelector('.cancel-btn');
+                    if (cancelBtn) cancelBtn.classList.remove('hidden');
                     
-                    if (!card.querySelector('.gk-notice')) {
-                        const notice = document.createElement('div');
-                        notice.className = "gk-notice text-xs text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded border border-emerald-900 text-center mt-2";
-                        notice.innerText = i18nTxt.gkDecisionRecorded || 'Decision Recorded';
+                    let notice = card.querySelector('.gk-notice');
+                    if (!notice) {
+                        notice = document.createElement('div');
+                        notice.className = "gk-notice text-xs text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded border border-emerald-900 text-center mt-2 flex items-center justify-between gap-2";
                         form.appendChild(notice);
                     }
+                    const label = targetId === 'yes' ? (i18nTxt.gkOptionYes || 'Reveal Roles') : (i18nTxt.gkOptionNo || 'Do Not Reveal');
+                    notice.innerHTML = `<span>${i18nTxt.gkDecisionRecorded || 'Decision Recorded'}: <strong>${label}</strong></span>`;
                 }
 
                 // Unique function for Citizen night action
@@ -2073,6 +2088,13 @@ document.addEventListener('submit', async function(e) {
                         if (statusBadge) {
                             statusBadge.className = "status-badge text-[10px] bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded font-bold uppercase";
                             statusBadge.innerText = i18nTxt.pending || 'Pending';
+                        }
+
+                        if (role === 'Grave Keeper') {
+                            const gkButtons = card.querySelector('#gk-buttons-container');
+                            if (gkButtons) gkButtons.classList.remove('hidden');
+                            const notice = card.querySelector('.gk-notice');
+                            if (notice) notice.remove();
                         }
                         
                         const resultContainer = card.querySelector('.result-container');
