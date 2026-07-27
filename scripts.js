@@ -706,36 +706,38 @@ document.addEventListener('click', function(e) {
 
                 function evaluateInvestigationLocally(targetName, state) {
                     let targetRole = null;
+                    let targetId = null;
                     state.players.forEach(p => {
                         if (p.name.trim() === targetName.trim()) {
                             targetRole = p.role || '';
+                            targetId = p.id;
                         }
                     });
 
                     if (!targetRole) return 'Citizen';
 
-                    const nightActions = state.night_actions || {};
-                    const deceiver_target_id = nightActions['Deceiver'] || null;
-                    let deceiverTargetName = null;
-                    if (deceiver_target_id) {
-                        const p = state.players.find(pl => pl.id === deceiver_target_id);
-                        if (p) deceiverTargetName = p.name;
-                    }
-
-                    const deceiverAlive = state.players.some(p => p.role === 'Deceiver' && p.status === 'alive');
-                    const isDeceived = (deceiverAlive && deceiverTargetName && deceiverTargetName.trim() === targetName.trim());
-
-                    if (isDeceived) {
-                        const isMafia = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(targetRole);
-                        return isMafia ? 'Citizen' : 'Regular Mafia';
-                    }
-
                     if (targetRole === 'Mafia Boss') {
                         return 'Citizen';
                     }
 
+                    const nightActions = state.night_actions || {};
+                    const deceiver_target = nightActions['Deceiver'] || null;
+                    const deceiverAlive = state.players.some(p => p.role === 'Deceiver' && p.status === 'alive');
+                    
+                    let isDeceived = false;
+                    if (deceiverAlive && deceiver_target) {
+                        const pDeceiver = state.players.find(pl => String(pl.id) === String(deceiver_target) || pl.name === deceiver_target);
+                        if (pDeceiver && String(pDeceiver.id) === String(targetId)) {
+                            isDeceived = true;
+                        }
+                    }
+
                     const isMafia = ['Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(targetRole);
-                    return isMafia ? 'Regular Mafia' : 'Citizen';
+                    if (isDeceived) {
+                        return isMafia ? 'Citizen' : 'Regular Mafia';
+                    } else {
+                        return isMafia ? 'Regular Mafia' : 'Citizen';
+                    }
                 }
 
                 function checkWinConditions(state) {
@@ -1963,39 +1965,68 @@ document.addEventListener('click', function(e) {
                     resultContainer.classList.remove('hidden');
                     
                     const invRes = resultContainer.querySelector('.investigator-result');
-                    if (!invRes) return;
-                    
-                    invRes.classList.remove('hidden');
-                    const selectedOpt = targetSelect.options[targetSelect.selectedIndex];
-                    const targetRole = selectedOpt ? (selectedOpt.getAttribute('data-role') || 'Citizen') : 'Citizen';
-                    
-                    // Check if target is deceived by Deceiver tonight
-                    const deceiverTargetId = window.localNightActions ? window.localNightActions['Deceiver'] : null;
-                    const isDeceived = (deceiverTargetId && deceiverTargetId === targetId);
-                    
-                    let evalRes = targetRole;
-                    if (isDeceived) {
-                        const isMafia = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(targetRole);
-                        evalRes = isMafia ? 'Citizen' : 'Regular Mafia';
-                    } else {
-                        if (targetRole === 'Mafia Boss') {
-                            evalRes = 'Citizen';
-                        } else if (['Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(targetRole)) {
-                            evalRes = 'Regular Mafia';
-                        } else {
-                            evalRes = 'Citizen';
-                        }
-                    }
-                    
-                    const isMafiaAligned = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(evalRes);
-                    const displayLabel = isMafiaAligned ? (i18nRoles['Mafia'] || 'Mafia') : (i18nRoles['Citizen'] || 'Citizen');
+                    if (invRes) {
+                        invRes.classList.remove('hidden');
+                        
+                        // Get the state from local storage database
+                        const state = getGameState();
+                        if (state) {
+                            const p = state.players.find(pl => String(pl.id) === String(targetId));
+                            if (p) {
+                                const targetRole = p.role || 'Citizen';
+                                
+                                let evalRes = 'Citizen';
+                                if (targetRole === 'Mafia Boss') {
+                                    evalRes = 'Citizen';
+                                } else {
+                                    // Check if Deceiver is alive in game
+                                    const deceiverAlive = state.players.some(pl => pl.role === 'Deceiver' && pl.status === 'alive');
+                                    
+                                    // Check if target is deceived by Deceiver tonight
+                                    const localDeceiverTarget = window.localNightActions ? window.localNightActions['Deceiver'] : null;
+                                    const stateDeceiverTarget = state.night_actions ? state.night_actions['Deceiver'] : null;
+                                    const deceiverTarget = localDeceiverTarget || stateDeceiverTarget;
+                                    
+                                    let isDeceived = false;
+                                    if (deceiverAlive && deceiverTarget) {
+                                        const pDeceiver = state.players.find(pl => String(pl.id) === String(deceiverTarget) || pl.name === deceiverTarget);
+                                        if (pDeceiver && pDeceiver.id === p.id) {
+                                            isDeceived = true;
+                                        }
+                                    }
+                                    
+                                    const isMafia = ['Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(targetRole);
+                                    if (isDeceived) {
+                                        evalRes = isMafia ? 'Citizen' : 'Regular Mafia';
+                                    } else {
+                                        evalRes = isMafia ? 'Regular Mafia' : 'Citizen';
+                                    }
+                                }
+                                
+                                const isMafiaAligned = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(evalRes);
+                                const displayLabel = isMafiaAligned ? (i18nRoles['Mafia'] || 'Mafia') : (i18nRoles['Citizen'] || 'Citizen');
 
-                    if (isMafiaAligned) {
-                        invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-rose-950/80 border-rose-800 text-rose-300 animate-pulse mt-1';
-                        invRes.innerHTML = `${i18nTxt.investigatorResult || '🔍 Investigator Result:'} <span class="underline uppercase font-extrabold text-sm">${displayLabel}</span>`;
-                    } else {
-                        invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-sky-950/80 border-sky-800 text-sky-300 mt-1';
-                        invRes.innerHTML = `${i18nTxt.investigatorResult || '🔍 Investigator Result:'} <span class="underline uppercase font-extrabold text-sm">${displayLabel}</span>`;
+                                if (isMafiaAligned) {
+                                    invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-rose-950/80 border-rose-800 text-rose-300 animate-pulse mt-1';
+                                    invRes.innerHTML = `${i18nTxt.investigatorResult || '🔍 Investigator Result:'} <span class="underline uppercase font-extrabold text-sm">${displayLabel}</span>`;
+                                } else {
+                                    invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-sky-950/80 border-sky-800 text-sky-300 mt-1';
+                                    invRes.innerHTML = `${i18nTxt.investigatorResult || '🔍 Investigator Result:'} <span class="underline uppercase font-extrabold text-sm">${displayLabel}</span>`;
+                                }
+
+                                // Display actual exact role as requested by the user
+                                let invActualRes = resultContainer.querySelector('.investigator-actual-role');
+                                if (!invActualRes) {
+                                    invActualRes = document.createElement('div');
+                                    invActualRes.className = 'investigator-actual-role text-xs font-bold p-2 rounded border text-center bg-indigo-950/80 border-indigo-800 text-indigo-300 mt-1';
+                                    resultContainer.appendChild(invActualRes);
+                                }
+                                invActualRes.classList.remove('hidden');
+                                const targetRoleTranslated = i18nRoles[targetRole] || targetRole;
+                                const exactRoleLabel = window.currentLang === 'ku' ? 'رۆلێ دروست یێ یاریزانێ هاتیە دیارکرن:' : (window.currentLang === 'ar' ? 'دور اللاعب الحقيقي الكاشف:' : 'Target’s Exact Role:');
+                                invActualRes.innerHTML = `${exactRoleLabel} <span class="underline uppercase font-extrabold text-sm">${targetRoleTranslated}</span>`;
+                            }
+                        }
                     }
                 }
 
@@ -2166,6 +2197,60 @@ document.addEventListener('click', function(e) {
                             if (cancelBtn) cancelBtn.classList.remove('hidden');
                             if (resultContainer) resultContainer.classList.remove('hidden');
                             if (selectedText) selectedText.innerText = i18nTxt.selectedPrefix + " " + recordedTarget;
+
+                            if (role === 'Investigator' && selectElem) {
+                                const p = data.players.find(pl => pl.name === recordedTarget);
+                                if (p) {
+                                    const targetRole = p.role || 'Citizen';
+                                    
+                                    let evalRes = 'Citizen';
+                                    if (targetRole === 'Mafia Boss') {
+                                        evalRes = 'Citizen';
+                                    } else {
+                                        const deceiverAlive = data.players.some(pl => pl.role === 'Deceiver' && pl.status === 'alive');
+                                        const deceiverTarget = data.night_actions ? data.night_actions['Deceiver'] : null;
+                                        
+                                        let isDeceived = false;
+                                        if (deceiverAlive && deceiverTarget) {
+                                            const pDeceiver = data.players.find(pl => String(pl.id) === String(deceiverTarget) || pl.name === deceiverTarget);
+                                            if (pDeceiver && pDeceiver.id === p.id) {
+                                                isDeceived = true;
+                                            }
+                                        }
+                                        
+                                        const isMafia = ['Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(targetRole);
+                                        if (isDeceived) {
+                                            evalRes = isMafia ? 'Citizen' : 'Regular Mafia';
+                                        } else {
+                                            evalRes = isMafia ? 'Regular Mafia' : 'Citizen';
+                                        }
+                                    }
+                                    
+                                    const isMafiaAligned = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(evalRes);
+                                    const displayLabel = isMafiaAligned ? (i18nRoles['Mafia'] || 'Mafia') : (i18nRoles['Citizen'] || 'Citizen');
+
+                                    let invRes = resultContainer.querySelector('.investigator-result');
+                                    if (invRes) {
+                                        if (isMafiaAligned) {
+                                            invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-rose-950/80 border-rose-800 text-rose-300 animate-pulse mt-1';
+                                        } else {
+                                            invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-sky-950/80 border-sky-800 text-sky-300 mt-1';
+                                        }
+                                        invRes.innerHTML = `${i18nTxt.investigatorResult || '🔍 Investigator Result:'} <span class="underline uppercase font-extrabold text-sm">${displayLabel}</span>`;
+                                    }
+
+                                    let invActualRes = resultContainer.querySelector('.investigator-actual-role');
+                                    if (!invActualRes) {
+                                        invActualRes = document.createElement('div');
+                                        invActualRes.className = 'investigator-actual-role text-xs font-bold p-2 rounded border text-center bg-indigo-950/80 border-indigo-800 text-indigo-300 mt-1';
+                                        resultContainer.appendChild(invActualRes);
+                                    }
+                                    invActualRes.classList.remove('hidden');
+                                    const targetRoleTranslated = i18nRoles[targetRole] || targetRole;
+                                    const exactRoleLabel = window.currentLang === 'ku' ? 'رۆلێ دروست یێ یاریزانێ هاتیە دیارکرن:' : (window.currentLang === 'ar' ? 'دور اللاعب الحقيقي الكاشف:' : 'Target’s Exact Role:');
+                                    invActualRes.innerHTML = `${exactRoleLabel} <span class="underline uppercase font-extrabold text-sm">${targetRoleTranslated}</span>`;
+                                }
+                            }
                         } else {
                             if (statusBadge) {
                                 statusBadge.className = "status-badge text-[10px] bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded font-bold uppercase";

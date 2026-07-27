@@ -63,7 +63,12 @@ function evaluate_investigation($target_name, $db) {
 
     if (!$target_role) return 'Citizen';
 
-    // Deceiver's night action effect on investigator results:
+    // 1. If target’s role is mafia boss then it will show citizen.
+    if ($target_role === 'Mafia Boss') {
+        return 'Citizen';
+    }
+
+    // 2. Check if deceiver is alive and has targeted the investigator's target
     $deceiver_target = $db['night_actions']['Deceiver'] ?? null;
     $deceiver_alive = false;
     foreach ($db['players'] as $p) {
@@ -75,27 +80,15 @@ function evaluate_investigation($target_name, $db) {
 
     $is_deceived = ($deceiver_alive && $deceiver_target && trim($deceiver_target) === trim($target_name));
 
-    if ($is_deceived) {
-        // If the deceived person was a mafia, show as Citizen for investigator; if citizen, show as Mafia
-        $is_mafia_aligned = in_array($target_role, ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']);
-        if ($is_mafia_aligned) {
-            return 'Citizen';
-        } else {
-            return 'Regular Mafia';
-        }
-    }
-
-    // Normal Investigator evaluation:
-    // Mafia Boss is always a Citizen for Investigator
-    if ($target_role === 'Mafia Boss') {
-        return 'Citizen';
-    }
-
+    // 3. Evaluate alignment
     $is_mafia_aligned = in_array($target_role, ['Mafia Doctor', 'Deceiver', 'Regular Mafia']);
-    if ($is_mafia_aligned) {
-        return 'Regular Mafia';
+
+    if ($is_deceived) {
+        // opposite: if mafia -> citizen, if citizen -> mafia (Regular Mafia)
+        return $is_mafia_aligned ? 'Citizen' : 'Regular Mafia';
     } else {
-        return 'Citizen';
+        // actual: if mafia -> mafia (Regular Mafia), if citizen -> citizen
+        return $is_mafia_aligned ? 'Regular Mafia' : 'Citizen';
     }
 }
 

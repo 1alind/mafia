@@ -734,10 +734,27 @@ hr {
                                             $eval_res = $recorded_target ? evaluate_investigation($recorded_target, $db) : '';
                                             $is_mafia_aligned = in_array($eval_res, ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']);
                                             $eval_display = $is_mafia_aligned ? (get_role_label('Mafia') ?: 'Mafia') : (get_role_label('Citizen') ?: 'Citizen');
+                                            
+                                            // Find target's actual exact role
+                                            $actual_role = '';
+                                            if ($recorded_target) {
+                                                foreach ($db['players'] as $p) {
+                                                    if ($p['name'] === $recorded_target) {
+                                                        $actual_role = $p['role'] ?? '';
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            $actual_role_label = $actual_role ? (get_role_label($actual_role) ?: $actual_role) : '';
                                         ?>
                                             <div class="investigator-result text-xs font-bold p-2 rounded border text-center <?php echo $is_mafia_aligned ? 'bg-rose-950/80 border-rose-800 text-rose-300 animate-pulse' : 'bg-sky-950/80 border-sky-800 text-sky-300'; ?>">
                                                 <?php echo __('investigator_result'); ?> <span class="underline uppercase font-extrabold text-sm"><?php echo htmlspecialchars($eval_display); ?></span>
                                             </div>
+                                            <?php if ($actual_role_label): ?>
+                                                <div class="investigator-actual-role text-xs font-bold p-2 rounded border text-center bg-indigo-950/80 border-indigo-800 text-indigo-300 mt-1">
+                                                    <?php echo get_current_lang() === 'ku' ? 'رۆلێ دروست یێ یاریزانێ هاتیە دیارکرن:' : (get_current_lang() === 'ar' ? 'دور اللاعب الحقيقي الكاشف:' : 'Target’s Exact Role:'); ?> <span class="underline uppercase font-extrabold text-sm"><?php echo htmlspecialchars($actual_role_label); ?></span>
+                                                </div>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </div>
                                 <?php endif; ?>
