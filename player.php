@@ -686,8 +686,6 @@ socket.onclose = () => console.log('WebSocket disconnected');
 
                 if (initialRolesShared && initialMyRole && initialMyRole !== 'Pending') {
                     startLocalCountdown(initialMyRole);
-                } else if (myPlayerId) {
-                    pollTimer = setInterval(pollPlayer, 3000);
                 }
             </script>
         <?php endif; ?>

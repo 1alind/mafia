@@ -1804,7 +1804,8 @@ document.addEventListener('submit', async function(e) {
                         });
                 }
 
-                setInterval(pollHost, 3000);
+                // Background polling removed per user request
+                // function pollHost is still available for manual/form updates if needed
 
                 // Helper to save action locally and show save feedback on button
                 function saveLocalNightAction(role, targetId, form) {
