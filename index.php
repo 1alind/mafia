@@ -274,6 +274,7 @@ try {
 }
 
 document.addEventListener('submit', async function(e) {
+    if (e.defaultPrevented) return;
     if (e.target.tagName === 'FORM') {
         e.preventDefault();
         const formData = new FormData(e.target);
@@ -332,39 +333,84 @@ document.addEventListener('submit', async function(e) {
              }
         }
         
-        const response = await fetch(window.location.href, {
-            method: 'POST',
-            body: formData
-        });
-        
-        // Trigger pollHost after any other action, specifically next_phase
-        if (formData.get('action') === 'next_phase') {
-             if (typeof pollHost === 'function') {
-                 pollHost(); // Update UI after next_phase
-             }
-        }
-        
-        // If it's a claim_host action, reload the page to ensure the dashboard is loaded
-        if (formData.get('action') === 'claim_host') {
-            window.location.reload();
-            return;
-        }
-        
-        if (response.ok) {
-            console.log('Form submitted successfully');
-            const html = await response.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
+        try {
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            });
             
-            // Only update the container content to avoid full page reload feel
-            const newContainer = doc.getElementById('main-container');
-            const currentContainer = document.getElementById('main-container');
-            if (newContainer && currentContainer) {
-                currentContainer.innerHTML = newContainer.innerHTML;
-            } else {
-                window.location.reload();
+            if (formData.get('action') === 'next_phase' && typeof pollHost === 'function') {
+                 pollHost();
             }
+            
+            if (response.ok) {
+                console.log('Form submitted successfully via AJAX');
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                const newContainer = doc.getElementById('main-container');
+                const currentContainer = document.getElementById('main-container');
+                if (newContainer && currentContainer) {
+                    currentContainer.innerHTML = newContainer.innerHTML;
+                } else if (doc.body) {
+                    document.body.innerHTML = doc.body.innerHTML;
+                }
+
+                // Close modals if open
+                const rolesModal = document.getElementById('roles-config-modal');
+                if (rolesModal && !rolesModal.classList.contains('hidden')) {
+                    rolesModal.classList.add('hidden');
+                }
+            }
+        } catch (err) {
+            console.error('Submit error:', err);
         }
+    }
+});
+
+// Modal handler for Roles Guide (0 page reloads)
+document.addEventListener('click', function(e) {
+    const link = e.target.closest('a[href="roles.php"]');
+    if (link) {
+        e.preventDefault();
+        let modal = document.getElementById('roles-guide-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'roles-guide-modal';
+            modal.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4';
+            modal.innerHTML = `
+                <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+                    <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                        <h3 class="font-bold text-sm text-slate-200">📖 Role Guide</h3>
+                        <button type="button" onclick="document.getElementById('roles-guide-modal').remove()" class="text-slate-400 hover:text-white font-bold text-lg px-2">✕</button>
+                    </div>
+                    <div id="roles-guide-content" class="p-4 overflow-y-auto space-y-3 text-xs text-slate-300">
+                        <div class="text-center py-6 animate-pulse text-slate-400">Loading guide...</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        } else {
+            modal.classList.remove('hidden');
+        }
+        fetch('roles.php')
+            .then(r => r.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const container = doc.querySelector('.container') || doc.body;
+                const contentEl = document.getElementById('roles-guide-content');
+                if (contentEl && container) {
+                    contentEl.innerHTML = container.innerHTML;
+                    const backBtns = contentEl.querySelectorAll('a[href], button');
+                    backBtns.forEach(btn => {
+                        if (btn.innerText.includes('Back') || btn.innerText.includes('گەڕیان') || btn.innerText.includes('عودة')) {
+                            btn.remove();
+                        }
+                    });
+                }
+            });
     }
 });
 </script>
@@ -1726,7 +1772,25 @@ document.addEventListener('submit', async function(e) {
                         .then(r => r.json())
                         .then(data => {
                             if (data.roles_shared !== lastRolesSharedState || data.phase !== lastPhaseState || data.winner !== lastWinnerState || data.grave_keeper_revealed_roles !== lastGraveRevealState || data.grave_keeper_charges !== lastGraveChargesState) {
-                                location.reload();
+                                lastRolesSharedState = data.roles_shared;
+                                lastPhaseState = data.phase;
+                                lastWinnerState = data.winner;
+                                lastGraveRevealState = data.grave_keeper_revealed_roles;
+                                lastGraveChargesState = data.grave_keeper_charges;
+
+                                fetch(window.location.href)
+                                    .then(res => res.text())
+                                    .then(html => {
+                                        const parser = new DOMParser();
+                                        const doc = parser.parseFromString(html, 'text/html');
+                                        const newContainer = doc.getElementById('main-container');
+                                        const currentContainer = document.getElementById('main-container');
+                                        if (newContainer && currentContainer) {
+                                            currentContainer.innerHTML = newContainer.innerHTML;
+                                        } else if (doc.body) {
+                                            document.body.innerHTML = doc.body.innerHTML;
+                                        }
+                                    });
                                 return;
                             }
 
@@ -2159,62 +2223,6 @@ document.addEventListener('submit', async function(e) {
                     let parts = value.split("; " + name + "=");
                     if (parts.length === 2) return parts.pop().split(";").shift();
                 }
-
-                // Intercept all POST form submissions on index.php to avoid page reload
-                document.addEventListener('submit', function(e) {
-                    const form = e.target;
-                    if (form.tagName === 'FORM' && form.method.toLowerCase() === 'post') {
-                        if (e.defaultPrevented) return;
-                        e.preventDefault();
-
-                        const formData = new FormData(form);
-                        formData.append('ajax', '1');
-
-                        let targetUrl = form.getAttribute('action') || '';
-                        if (!targetUrl) {
-                            targetUrl = window.location.pathname;
-                        }
-
-                        fetch(targetUrl, {
-                            method: 'POST',
-                            body: formData,
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest'
-                            }
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Network response was not ok');
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            const browserId = getCookie('mafia_browser_id');
-                            const isHostPage = window.location.pathname.endsWith('index.php') || window.location.pathname === '/';
-                            
-                            // Redirect from host to player if they are no longer host
-                            if (isHostPage && data.host_browser_id && data.host_browser_id !== browserId) {
-                                window.location.href = 'player.php';
-                                return;
-                            }
-
-                            // If we are in the host page, trigger pollHost() to instantly update UI
-                            if (typeof pollHost === 'function') {
-                                pollHost();
-                            }
-
-                            // Hide the Roles selection modal if it is open
-                            const rolesModal = document.getElementById('roles-config-modal');
-                            if (rolesModal && !rolesModal.classList.contains('hidden')) {
-                                rolesModal.classList.add('hidden');
-                            }
-                        })
-                        .catch(err => {
-                            console.error('AJAX form submission error:', err);
-                            window.location.reload();
-                        });
-                    }
-                });
             </script>
         <?php endif; ?>
     </div>

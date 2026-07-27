@@ -492,7 +492,13 @@ socket.onclose = () => console.log('WebSocket disconnected');
                                 localStorage.setItem('mafia_reset_token', lastResetToken);
                                 localStorage.removeItem('mafia_role_revealed_' + myPlayerId);
                                 stopPolling();
-                                window.location.reload();
+                                fetch(window.location.href)
+                                    .then(res => res.text())
+                                    .then(html => {
+                                        const parser = new DOMParser();
+                                        const doc = parser.parseFromString(html, 'text/html');
+                                        if (doc.body) document.body.innerHTML = doc.body.innerHTML;
+                                    });
                                 return;
                             }
 
@@ -659,16 +665,16 @@ socket.onclose = () => console.log('WebSocket disconnected');
                                 return;
                             }
 
-                            // If they registered successfully (join_game), reload to render logged in template
+                            // If they registered successfully (join_game) or reset, update page dynamically
                             const actionInput = form.querySelector('input[name="action"]');
-                            if (actionInput && actionInput.value === 'join_game') {
-                                window.location.reload();
-                                return;
-                            }
-
-                            // If they submitted a reset or similar action, reload
-                            if (actionInput && (actionInput.value === 'hard_reset' || actionInput.value === 'reset_session')) {
-                                window.location.reload();
+                            if (actionInput && (actionInput.value === 'join_game' || actionInput.value === 'hard_reset' || actionInput.value === 'reset_session')) {
+                                fetch(window.location.href)
+                                    .then(res => res.text())
+                                    .then(html => {
+                                        const parser = new DOMParser();
+                                        const doc = parser.parseFromString(html, 'text/html');
+                                        if (doc.body) document.body.innerHTML = doc.body.innerHTML;
+                                    });
                                 return;
                             }
 
@@ -679,8 +685,52 @@ socket.onclose = () => console.log('WebSocket disconnected');
                         })
                         .catch(err => {
                             console.error('AJAX form submission error:', err);
-                            window.location.reload();
                         });
+                    }
+                });
+
+                // Modal handler for Roles Guide (0 page reloads)
+                document.addEventListener('click', function(e) {
+                    const link = e.target.closest('a[href="roles.php"]');
+                    if (link) {
+                        e.preventDefault();
+                        let modal = document.getElementById('roles-guide-modal');
+                        if (!modal) {
+                            modal = document.createElement('div');
+                            modal.id = 'roles-guide-modal';
+                            modal.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4';
+                            modal.innerHTML = `
+                                <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+                                    <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                                        <h3 class="font-bold text-sm text-slate-200">📖 Role Guide</h3>
+                                        <button type="button" onclick="document.getElementById('roles-guide-modal').remove()" class="text-slate-400 hover:text-white font-bold text-lg px-2">✕</button>
+                                    </div>
+                                    <div id="roles-guide-content" class="p-4 overflow-y-auto space-y-3 text-xs text-slate-300">
+                                        <div class="text-center py-6 animate-pulse text-slate-400">Loading guide...</div>
+                                    </div>
+                                </div>
+                            `;
+                            document.body.appendChild(modal);
+                        } else {
+                            modal.classList.remove('hidden');
+                        }
+                        fetch('roles.php')
+                            .then(r => r.text())
+                            .then(html => {
+                                const parser = new DOMParser();
+                                const doc = parser.parseFromString(html, 'text/html');
+                                const container = doc.querySelector('.container') || doc.body;
+                                const contentEl = document.getElementById('roles-guide-content');
+                                if (contentEl && container) {
+                                    contentEl.innerHTML = container.innerHTML;
+                                    const backBtns = contentEl.querySelectorAll('a[href], button');
+                                    backBtns.forEach(btn => {
+                                        if (btn.innerText.includes('Back') || btn.innerText.includes('گەڕیان') || btn.innerText.includes('عودة')) {
+                                            btn.remove();
+                                        }
+                                    });
+                                }
+                            });
                     }
                 });
 
