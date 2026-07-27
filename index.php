@@ -17,6 +17,7 @@ $all_game_roles = [
     'Judge',
     'Grave Keeper',
     'Mirhas',
+    'Suicidal Bomb',
     'Citizen'
 ];
 
@@ -317,20 +318,28 @@ document.addEventListener('submit', async function(e) {
         }
 
         // Special handling for Next Phase to submit local actions
-        if (formData.get('action') === 'next_phase' && window.localNightActions && Object.keys(window.localNightActions).length > 0) {
-             const bulkFormData = new FormData();
-             bulkFormData.append('action', 'submit_all_night_actions');
-             bulkFormData.append('actions', JSON.stringify(window.localNightActions));
-             bulkFormData.append('ajax', '1');
-             
-             await fetch('actions.php?ajax=1', {
-                 method: 'POST',
-                 body: bulkFormData
-              });
-             window.localNightActions = {}; // Clear after successful submit
-             if (typeof pollHost === 'function') {
-                 pollHost(); // Update UI after night actions submitted
-             }
+        if (formData.get('action') === 'next_phase') {
+            if (!window.localNightActions) window.localNightActions = {};
+            document.querySelectorAll('[data-role-card]').forEach(card => {
+                const role = card.getAttribute('data-role-card');
+                const select = card.querySelector('.target-select');
+                if (role && select && select.value !== '') {
+                    window.localNightActions[role] = select.value;
+                }
+            });
+
+            if (Object.keys(window.localNightActions).length > 0) {
+                 const bulkFormData = new FormData();
+                 bulkFormData.append('action', 'submit_all_night_actions');
+                 bulkFormData.append('actions', JSON.stringify(window.localNightActions));
+                 bulkFormData.append('ajax', '1');
+                 
+                 await fetch('actions.php?ajax=1', {
+                     method: 'POST',
+                     body: bulkFormData
+                  });
+                 window.localNightActions = {}; // Clear after successful submit
+            }
         }
         
         try {
@@ -677,7 +686,7 @@ document.addEventListener('click', function(e) {
                         $call_grave_keeper_tonight = ($has_grave_keeper && !$is_gk_dead && $gk_charges > 0);
 
                         foreach ($all_game_roles as $role): 
-                            if (in_array($role, ['Judge', 'Citizen', 'Mirhas', 'Regular Mafia'])) continue;
+                            if (in_array($role, ['Citizen', 'Mirhas', 'Regular Mafia'])) continue;
                             
                             if ($role === 'Grave Keeper') {
                                 if (!$call_grave_keeper_tonight) continue; 
@@ -853,9 +862,10 @@ document.addEventListener('click', function(e) {
                                         <?php if ($role === 'Investigator'): 
                                             $eval_res = $recorded_target ? evaluate_investigation($recorded_target, $db) : '';
                                             $is_mafia_aligned = in_array($eval_res, ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']);
+                                            $eval_display = $is_mafia_aligned ? (get_role_label('Mafia') ?: 'Mafia') : (get_role_label('Citizen') ?: 'Citizen');
                                         ?>
                                             <div class="investigator-result text-xs font-bold p-2 rounded border text-center <?php echo $is_mafia_aligned ? 'bg-rose-950/80 border-rose-800 text-rose-300 animate-pulse' : 'bg-sky-950/80 border-sky-800 text-sky-300'; ?>">
-                                                <?php echo __('investigator_result'); ?> <span class="underline uppercase"><?php echo $eval_res ? (get_role_label($eval_res) ?: htmlspecialchars($eval_res)) : ''; ?></span>
+                                                <?php echo __('investigator_result'); ?> <span class="underline uppercase font-extrabold text-sm"><?php echo htmlspecialchars($eval_display); ?></span>
                                             </div>
                                         <?php endif; ?>
                                     </div>
@@ -925,11 +935,11 @@ document.addEventListener('click', function(e) {
                                 <p class="text-xs text-emerald-400 font-bold">
                                     <?php 
                                     if ($lang === 'ku') {
-                                        echo '🪦 گۆڕهەڵکەن بڕیاردا کو ڕۆلێن یاریزانێن شەڤا بڕی مرین ئاشکرا بکەت:';
+                                        echo '🪦 بڕیارا گورکولی: (بەلێ) - ڕۆلێن یاریزانێن دەرکەفتین و مرین هاتنە ئاشکراکرن:';
                                     } elseif ($lang === 'ar') {
-                                        echo '🪦 قرر حارس القبور كشف أدوار اللاعبين الذين ماتوا الليلة الماضية:';
+                                        echo '🪦 قرار حارس القبور: (نعم) - تم كشف أدوار اللاعبين المطرودين والمستبعدين:';
                                     } else {
-                                        echo '🪦 Grave keeper decided to reveal the roles of players who died last night:';
+                                        echo '🪦 Gravedigger Decision: (YES) - Revealed roles of voted out and eliminated players:';
                                     }
                                     ?>
                                 </p>
@@ -951,11 +961,11 @@ document.addEventListener('click', function(e) {
                                 <p class="text-xs text-slate-400 font-bold">
                                     <?php 
                                     if ($lang === 'ku') {
-                                        echo '🪦 گۆڕهەڵکەن بڕیاردا کو ڕۆلان ئاشکرا نەکەت.';
+                                        echo '🪦 بڕیارا گورکولی: (نەخێر) - ڕۆلێن مرین هاتنە ڤەشارتن.';
                                     } elseif ($lang === 'ar') {
-                                        echo '🪦 قرر حارس القبور عدم كشف الأدوار.';
+                                        echo '🪦 قرار حارس القبور: (لا) - تم إبقاء أدوار الموتى مخفية.';
                                     } else {
-                                        echo '🪦 Grave keeper decided not to reveal the roles.';
+                                        echo '🪦 Gravedigger Decision: (NO) - Roles remain hidden.';
                                     }
                                     ?>
                                 </p>
@@ -967,69 +977,7 @@ document.addEventListener('click', function(e) {
                 </div>
             <?php endif; ?>
 
-            <!-- JUDGE DAYTIME INFO -->
-            <?php 
-            $has_judge = false;
-            $judge_name = '';
-            $is_judge_alive = false;
-            foreach ($db['players'] as $p) {
-                if (($p['role'] ?? '') === 'Judge') {
-                    $has_judge = true;
-                    $judge_name = $p['name'];
-                    if ($p['status'] === 'alive') {
-                        $is_judge_alive = true;
-                    }
-                    break;
-                }
-            }
-            ?>
-            <?php if ($db['phase'] === 'day' && $has_judge && empty($db['winner'])): ?>
-                <div class="bg-indigo-950/40 border border-indigo-900 p-5 rounded-xl space-y-4 shadow-lg">
-                    <div class="flex items-center justify-between border-b border-indigo-900/60 pb-3">
-                        <h3 class="text-sm font-black uppercase text-indigo-300 tracking-wider">
-                            <?php echo __('judge_panel_title'); ?>
-                        </h3>
-                        <span class="bg-indigo-950/80 border border-indigo-800 text-indigo-300 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">
-                            ⚖️ <?php echo get_role_label('Judge'); ?>
-                        </span>
-                    </div>
-                    
-                    <div class="space-y-3">
-                        <div class="bg-slate-900 p-4 rounded-lg border border-slate-800 space-y-2">
-                            <p class="text-xs text-slate-300 leading-relaxed">
-                                ⚖️ <strong><?php echo __('role_judge'); ?>:</strong> <?php echo __('desc_judge'); ?>
-                            </p>
-                            <p class="text-[11px] text-slate-400">
-                                <?php if ($is_judge_alive): ?>
-                                    <span class="text-emerald-400 font-bold">● <?php echo get_current_lang() === 'ku' ? 'یاریزانێ دادوەر د ساخە:' : (get_current_lang() === 'ar' ? 'لاعب القاضي على قيد الحياة:' : 'The Judge player is alive:'); ?></span> 
-                                    <strong class="text-white underline"><?php echo htmlspecialchars($judge_name); ?></strong>
-                                <?php else: ?>
-                                    <span class="text-rose-400 font-bold">○ <?php echo get_current_lang() === 'ku' ? 'دادوەر هاتیە کوشتن!' : (get_current_lang() === 'ar' ? 'تم قتل القاضي!' : 'The Judge has been eliminated!'); ?></span>
-                                <?php endif; ?>
-                            </p>
-                        </div>
 
-                        <div class="bg-indigo-950/20 border border-indigo-900/40 p-3.5 rounded-lg space-y-1 text-xs">
-                            <p class="font-black text-indigo-300 uppercase tracking-wide">
-                                <?php echo get_current_lang() === 'ku' ? 'ڕێنمایێن بڕیارێن دادوەری (بۆ مێهڤانداری):' : (get_current_lang() === 'ar' ? 'تعليمات قرارات القاضي (للمضيف):' : 'Judge Decision Guidelines (For Host):'); ?>
-                            </p>
-                            <ul class="list-disc list-inside text-slate-300 space-y-1.5 mt-2 leading-relaxed">
-                                <li>
-                                    <strong><?php echo get_current_lang() === 'ku' ? 'هەڵوەشاندنا هەمی دەنگدانان:' : (get_current_lang() === 'ar' ? 'إلغاء جميع الأصوات:' : 'Cancel All Votings:'); ?></strong> 
-                                    <?php echo get_current_lang() === 'ku' ? 'مێهڤاندار دشێت هەمی دەنگدانان هەڵبوەشینیت و چ یاریزان ئەڤرۆ دەرنەکەڤن.' : (get_current_lang() === 'ar' ? 'يمكن للمضيف إلغاء جميع الأصوات لليوم حتى لا يغادر أحد.' : 'The host can manually cancel all votes for the day so no player is kicked.'); ?>
-                                </li>
-                                <li>
-                                    <strong><?php echo get_current_lang() === 'ku' ? 'دەرئێخستنا یەک یاریزان تەنێ:' : (get_current_lang() === 'ar' ? 'طرد لاعب واحد فقط:' : 'Kick Only One Player:'); ?></strong> 
-                                    <?php echo get_current_lang() === 'ku' ? 'دادوەر دشێت بڕیار بدەت کو بتنێ یاریزانەکێ دیاریکری دەرکەڤیت و یێن دی بهێنە پاراستن.' : (get_current_lang() === 'ar' ? 'يمكن للقاضي اختيار طرد لاعب محدد فقط من الذين تم التصويت عليهم، وإبقاء الآخرين.' : 'The judge can choose to kick exactly one voted player, saving everyone else.'); ?>
-                                </li>
-                            </ul>
-                            <p class="text-[10px] text-slate-400 italic mt-2.5">
-                                ℹ️ <?php echo get_current_lang() === 'ku' ? 'ژبەرکو بریارێن دەنگدانێ یێن دادوەری ب دەستی دهێنە کرن، مێهڤاندار دێ ب دەستی یاریزانان دەرکەتنا وان یان ژین د کۆنترۆلا یاریزانان دا گۆڕیت.' : (get_current_lang() === 'ar' ? 'بما أن قرارات القاضي والتصويت تتم يدوياً، سيقوم المضيف بتغيير حالة اللاعبين يدوياً في لوحة الإدارة.' : 'Since the Judge’s voting decisions are handled manually, the host will manually toggle player statuses in the player management table.'); ?>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            <?php endif; ?>
 
             <!-- SUICIDAL BOMB REVENGE CONTROL -->
             <?php if ($db['phase'] === 'day' && !empty($db['suicidal_bomb_triggered_by']) && empty($db['winner'])): ?>
@@ -1209,8 +1157,8 @@ document.addEventListener('click', function(e) {
                                             <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Police" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Police'); ?></label>
                                             <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Town Doctor" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Town Doctor'); ?></label>
                                             <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Investigator" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Investigator'); ?></label>
-                                            <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Grave Keeper" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Grave Keeper'); ?></label>
                                             <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Judge" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Judge'); ?></label>
+                                            <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Grave Keeper" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Grave Keeper'); ?></label>
                                             <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Mirhas" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Mirhas'); ?></label>
                                             <label class="flex items-center gap-2 cursor-pointer hover:text-white transition"><input type="checkbox" name="special_roles[]" value="Suicidal Bomb" checked class="accent-emerald-500 rounded"> <?php echo get_role_label('Suicidal Bomb'); ?></label>
                                         </div>
@@ -1797,7 +1745,7 @@ document.addEventListener('click', function(e) {
                             if (JSON.stringify(data.night_actions) !== JSON.stringify(lastNightActionsState)) {
                                 lastNightActionsState = data.night_actions;
                                 if (typeof refreshNightCardUI === 'function') {
-                                    const allRoles = ['Mafia', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Judge', 'Grave Keeper', 'Mirhas', 'Citizen'];
+                                    const allRoles = ['Mafia', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Mirhas', 'Suicidal Bomb', 'Citizen'];
                                     allRoles.forEach(r => refreshNightCardUI(r, data));
                                 }
                             }
@@ -2015,12 +1963,14 @@ document.addEventListener('click', function(e) {
                     
                     const resultContainer = card.querySelector('.result-container');
                     if (!resultContainer) return;
+                    resultContainer.classList.remove('hidden');
                     
                     const invRes = resultContainer.querySelector('.investigator-result');
                     if (!invRes) return;
                     
                     invRes.classList.remove('hidden');
-                    const targetRole = targetSelect.options[targetSelect.selectedIndex].getAttribute('data-role') || 'Citizen';
+                    const selectedOpt = targetSelect.options[targetSelect.selectedIndex];
+                    const targetRole = selectedOpt ? (selectedOpt.getAttribute('data-role') || 'Citizen') : 'Citizen';
                     
                     // Check if target is deceived by Deceiver tonight
                     const deceiverTargetId = window.localNightActions ? window.localNightActions['Deceiver'] : null;
@@ -2041,13 +1991,14 @@ document.addEventListener('click', function(e) {
                     }
                     
                     const isMafiaAligned = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(evalRes);
-                    
+                    const displayLabel = isMafiaAligned ? (i18nRoles['Mafia'] || 'Mafia') : (i18nRoles['Citizen'] || 'Citizen');
+
                     if (isMafiaAligned) {
-                        invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-rose-950/80 border-rose-800 text-rose-300 animate-pulse';
-                        invRes.innerHTML = `${i18nTxt.investigatorResult} <span class="underline uppercase">${i18nRoles[evalRes] || evalRes}</span>`;
+                        invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-rose-950/80 border-rose-800 text-rose-300 animate-pulse mt-1';
+                        invRes.innerHTML = `${i18nTxt.investigatorResult || '🔍 Investigator Result:'} <span class="underline uppercase font-extrabold text-sm">${displayLabel}</span>`;
                     } else {
-                        invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-sky-950/80 border-sky-800 text-sky-300';
-                        invRes.innerHTML = `${i18nTxt.investigatorResult} <span class="underline uppercase">${i18nRoles[evalRes] || evalRes}</span>`;
+                        invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-sky-950/80 border-sky-800 text-sky-300 mt-1';
+                        invRes.innerHTML = `${i18nTxt.investigatorResult || '🔍 Investigator Result:'} <span class="underline uppercase font-extrabold text-sm">${displayLabel}</span>`;
                     }
                 }
 
@@ -2131,6 +2082,19 @@ document.addEventListener('click', function(e) {
                     const handler = roleHandlers[role] || handleCitizenNightAction;
                     handler(card, targetSelect, role, form);
                 }
+
+                // Immediately trigger result evaluation when selecting a target in dropdown
+                document.addEventListener('change', function(e) {
+                    if (e.target && e.target.classList.contains('target-select')) {
+                        const card = e.target.closest('[data-role-card]');
+                        if (card) {
+                            const role = card.getAttribute('data-role-card');
+                            if (role === 'Investigator') {
+                                handleInvestigatorNightAction(card, e.target, 'Investigator', e.target.form);
+                            }
+                        }
+                    }
+                });
 
                 function cancelNightAction(role) {
                     // Update local storage

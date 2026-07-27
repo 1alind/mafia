@@ -470,7 +470,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $target_name = null;
                 if ($target_id !== '') {
                     foreach ($db['players'] as $p) {
-                        if ($p['id'] === $target_id) {
+                        if ($p['id'] === $target_id || $p['name'] === $target_id) {
                             $target_name = $p['name'];
                             break;
                         }
@@ -849,12 +849,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 $revealed_roles = [];
                 if ($db['grave_keeper_reveal_pending'] ?? false) {
-                    foreach ($final_killed as $kname) {
-                        foreach ($db['players'] as $p) {
-                            if ($p['name'] === $kname) {
-                                $revealed_roles[$kname] = $p['role'] ?? 'Citizen';
-                                break;
-                            }
+                    foreach ($db['players'] as $p) {
+                        if (($p['status'] ?? '') === 'dead' || in_array($p['name'], $final_killed)) {
+                            $revealed_roles[$p['name']] = $p['role'] ?? 'Citizen';
                         }
                     }
                     $db['grave_keeper_revealed_roles'] = true;
@@ -927,31 +924,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             terminate_request("index.php");
         }
 
-        if ($action === 'judge_cancel_votings') {
-            $db['logs'][] = "⚖️ Judge cancelled all daytime votings for Day {$db['day']}. No players were kicked today.";
-            save_db($db);
-            terminate_request("index.php");
-        }
-
-        if ($action === 'judge_kick_one_player') {
-            $pid = $_POST['player_id'] ?? '';
-            if ($pid !== '') {
-                foreach ($db['players'] as &$p) {
-                    if ($p['id'] === $pid) {
-                        $p['status'] = 'dead';
-                        $db['logs'][] = "⚖️ Judge ruled to kick only '{$p['name']}' and keep all other players in the game.";
-                        if (($p['role'] ?? '') === 'Suicidal Bomb') {
-                            $db['suicidal_bomb_triggered_by'] = $p['name'];
-                            $db['logs'][] = "💣 Suicidal Bomb ('{$p['name']}') was voted out! Suicidal Bomb can now choose a player to be kicked out in revenge!";
-                        }
-                        break;
-                    }
-                }
-                check_win_conditions($db);
-                save_db($db);
-            }
-            terminate_request("index.php");
-        }
 
         if ($action === 'suicidal_bomb_explode') {
             $pid = $_POST['target_player_id'] ?? '';
