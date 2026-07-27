@@ -290,8 +290,12 @@ document.addEventListener('submit', async function(e) {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             
-            // Only update the body content to avoid destroying the script/style block
-            document.body.innerHTML = doc.body.innerHTML;
+            // Only update the container content to avoid full page reload feel
+            const newContainer = doc.querySelector('.container');
+            const currentContainer = document.querySelector('.container');
+            if (newContainer && currentContainer) {
+                currentContainer.innerHTML = newContainer.innerHTML;
+            }
         }
     }
 });

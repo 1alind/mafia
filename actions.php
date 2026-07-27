@@ -418,14 +418,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             if ($answer === 'yes') {
                 $db['grave_keeper_reveal_pending'] = true;
-                $db['gravedigger_reveal_pending'] = true;
                 if (($db['grave_keeper_charges'] ?? 2) > 0) {
                     $db['grave_keeper_charges'] = ($db['grave_keeper_charges'] ?? 2) - 1;
                     $db['gravedigger_charges'] = $db['grave_keeper_charges'];
                 }
             } else {
                 $db['grave_keeper_reveal_pending'] = false;
-                $db['gravedigger_reveal_pending'] = false;
             }
             $db['grave_keeper_revealed_roles'] = false;
             $db['grave_keeper_acted_tonight'] = true;
