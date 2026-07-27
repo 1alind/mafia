@@ -504,8 +504,9 @@ socket.onclose = () => console.log('WebSocket disconnected');
                             const currentPlayer = dbData.players ? dbData.players.find(p => p.id === myPlayerId) : null;
 
                             if (currentPlayer && dbData.roles_shared && currentPlayer.role && currentPlayer.role !== 'Pending') {
-                                // Roles are now shared! Reveal the role
+                                // Roles are now shared! Reveal the role and stop polling!
                                 startLocalCountdown(currentPlayer.role);
+                                stopPolling();
                             }
                         })
                         .catch(err => {
@@ -610,9 +611,10 @@ socket.onclose = () => console.log('WebSocket disconnected');
                 // --- INITIAL LOAD LOGIC ---
                 document.addEventListener('DOMContentLoaded', () => {
                     updateMuteUI();
-                    if (myPlayerId) {
+                    // Only poll if the roles are not shared yet (waiting for the game to start)
+                    if (myPlayerId && !initialRolesShared) {
                         stopPolling();
-                        pollTimer = setInterval(pollPlayer, 1500);
+                        pollTimer = setInterval(pollPlayer, 2000); // Poll slower (every 2 seconds) during lobby
                     }
                 });
 

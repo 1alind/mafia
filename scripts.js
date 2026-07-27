@@ -1416,7 +1416,7 @@ document.addEventListener('click', function(e) {
                     } else {
                         setInterval(() => {
                             if (typeof pollHost === 'function') pollHost();
-                        }, 1200);
+                        }, 2500);
                     }
                 });
 
