@@ -269,21 +269,32 @@ socket.onopen = () => console.log('WebSocket connected');
 socket.onmessage = (event) => console.log('WebSocket message:', event.data);
 socket.onclose = () => console.log('WebSocket disconnected');
 
-async function submitBotAction(formId) {
-    const form = document.getElementById(formId);
-    const formData = new FormData(form);
-    const response = await fetch(window.location.href, {
-        method: 'POST',
-        body: formData
-    });
-    if (response.ok) {
-        console.log('Bot action submitted successfully');
-        const html = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        document.body.innerHTML = doc.body.innerHTML;
+document.addEventListener('submit', async function(e) {
+    if (e.target.tagName === 'FORM') {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        
+        // Add the submitter button's name/value if it exists
+        if (e.submitter && e.submitter.name) {
+            formData.append(e.submitter.name, e.submitter.value);
+        }
+        
+        const response = await fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            console.log('Form submitted successfully');
+            const html = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Only update the body content to avoid destroying the script/style block
+            document.body.innerHTML = doc.body.innerHTML;
+        }
     }
-}
+});
 </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1028,13 +1039,13 @@ async function submitBotAction(formId) {
                             <div class="mt-4 grid grid-cols-2 gap-3">
                                 <form id="bot-form-1" class="w-full">
                                     <input type="hidden" name="action" value="add_bot">
-                                    <button type="button" onclick="submitBotAction('bot-form-1')" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 hover:text-sky-300 px-4 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-2">
+                                    <button type="submit" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 hover:text-sky-300 px-4 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-2">
                                         <span>🤖</span> +1 Bot Player
                                     </button>
                                 </form>
                                 <form id="bot-form-5" class="w-full">
                                     <input type="hidden" name="action" value="add_five_bots">
-                                    <button type="button" onclick="submitBotAction('bot-form-5')" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 hover:text-sky-300 px-4 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-2">
+                                    <button type="submit" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 hover:text-sky-300 px-4 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition shadow flex items-center justify-center gap-2">
                                         <span>🤖🤖</span> +5 Bot Players
                                     </button>
                                 </form>
