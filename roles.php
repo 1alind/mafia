@@ -24,12 +24,12 @@ $back_url = $is_host ? 'index.php' : 'player.php';
 <!DOCTYPE html>
 <html lang="<?php echo get_current_lang(); ?>" dir="<?php echo get_current_dir(); ?>">
 <head>
-    <link rel="stylesheet" href="style.css?v=2">
-    <script src="script.js?v=2"></script>
+    <link rel="stylesheet" href="<?php echo dirname($_SERVER['PHP_SELF']); ?>/style.css?v=2">
+    <script src="<?php echo dirname($_SERVER['PHP_SELF']); ?>/script.js?v=2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo __('app_title_roles'); ?></title>
-    <script src="tailwind.js?v=2"></script>
+    <script src="<?php echo dirname($_SERVER['PHP_SELF']); ?>/tailwind.js?v=2"></script>
     <style>
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
