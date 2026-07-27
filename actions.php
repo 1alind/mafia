@@ -441,7 +441,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($action === 'next_phase') {
             if ($db['phase'] === 'night') {
-                $mafia_target = $db['night_actions']['Mafia Boss'] ?? null;
+                $mafia_target = $db['night_actions']['Mafia'] ?? $db['night_actions']['Mafia Boss'] ?? null;
                 $mafia_doc_target = $db['night_actions']['Mafia Doctor'] ?? null;
                 $town_doc_target = $db['night_actions']['Town Doctor'] ?? null;
                 $police_target = $db['night_actions']['Police'] ?? null;
@@ -601,18 +601,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 $diary = [];
                 
-                // 1. Mafia Boss Target
+                // 1. Mafia Target
                 if ($mafia_target) {
                     $diary[] = [
-                        'en' => "• 🔪 <strong>Mafia Boss</strong> targeted <strong class='text-rose-400'>$mafia_target</strong>.",
-                        'ku' => "• 🔪 <strong>سەرۆکێ مافیا</strong> تەقە ل <strong class='text-rose-400'>$mafia_target</strong> کر.",
-                        'ar' => "• 🔪 <strong>زعيم المافيا</strong> استهدف <strong class='text-rose-400'>$mafia_target</strong>."
+                        'en' => "• 🔪 <strong>Mafia</strong> targeted <strong class='text-rose-400'>$mafia_target</strong>.",
+                        'ku' => "• 🔪 <strong>مافیا</strong> تەقە ل <strong class='text-rose-400'>$mafia_target</strong> کر.",
+                        'ar' => "• 🔪 <strong>المافيا</strong> استهدفت <strong class='text-rose-400'>$mafia_target</strong>."
                     ];
                 } else {
                     $diary[] = [
-                        'en' => "• 🔪 <strong>Mafia Boss</strong> did not choose any target.",
-                        'ku' => "• 🔪 <strong>سەرۆکێ مافیا</strong> چ کەس کەنەکرە ئارمانج.",
-                        'ar' => "• 🔪 <strong>زعيم المافيا</strong> لم يختر أي هدف."
+                        'en' => "• 🔪 <strong>Mafia</strong> did not choose any target.",
+                        'ku' => "• 🔪 <strong>مافیا</strong> چ کەس کەنەکرە ئارمانج.",
+                        'ar' => "• 🔪 <strong>المافيا</strong> لم تختر أي هدف."
                     ];
                 }
 

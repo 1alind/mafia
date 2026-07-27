@@ -7,7 +7,7 @@ if (!$is_host && !$needs_host_claim) {
 }
 
 $all_game_roles = [
-    'Mafia Boss',
+    'Mafia',
     'Mafia Doctor',
     'Deceiver',
     'Regular Mafia',
@@ -32,7 +32,8 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo __('app_title_host'); ?></title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="tailwind.js"></script>
+    <script src="qrcode.min.js"></script>
     <style>
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -42,6 +43,40 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
 <body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-6 font-sans">
     
     <div class="max-w-6xl mx-auto space-y-6">
+
+        <?php
+            $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            $ip = $_SERVER['SERVER_ADDR'] ?? '127.0.0.1';
+            $join_url = $protocol . "://" . $host . dirname($_SERVER['PHP_SELF']);
+            if (substr($join_url, -1) !== '/') {
+                $join_url .= '/';
+            }
+        ?>
+        <!-- Server Connection Info Banner -->
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="text-3xl">📡</div>
+                <div>
+                    <h2 class="text-sm font-bold text-slate-200">Connect to Game</h2>
+                    <p class="text-xs text-slate-400 font-mono mt-1">Domain: <span class="text-indigo-400"><?php echo htmlspecialchars($host); ?></span> | IP: <span class="text-indigo-400"><?php echo htmlspecialchars($ip); ?></span></p>
+                    <p class="text-xs text-slate-400 font-mono">URL: <span class="text-amber-400"><?php echo htmlspecialchars($join_url); ?></span></p>
+                </div>
+            </div>
+            <div>
+                <button onclick="document.getElementById('qr-modal').classList.toggle('hidden'); if(!window.qrCreated){ new QRCode(document.getElementById('qrcode-container'), '<?php echo addslashes($join_url); ?>'); window.qrCreated=true; }" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2">
+                    <span>📱</span> Show QR Code
+                </button>
+            </div>
+        </div>
+
+        <!-- QR Code Modal -->
+        <div id="qr-modal" class="hidden flex justify-center mb-6">
+            <div class="bg-white p-4 rounded-xl shadow-xl flex flex-col items-center">
+                <div id="qrcode-container" class="mb-2"></div>
+                <p class="text-xs font-bold text-slate-800 uppercase tracking-widest text-center">Scan to Join</p>
+            </div>
+        </div>
 
         <!-- Language Selector Header Bar -->
         <div class="flex flex-col sm:flex-row justify-between items-center bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-lg gap-3">
@@ -87,6 +122,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                     <button type="button" onclick="setTimerPreset(120)" class="px-2.5 py-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded text-xs font-bold transition">2m</button>
                     <button type="button" onclick="setTimerPreset(180)" class="px-2.5 py-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded text-xs font-bold transition">3m</button>
                     <button type="button" onclick="setTimerPreset(300)" class="px-2.5 py-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded text-xs font-bold transition">5m</button>
+                    <button type="button" onclick="setTimerPreset(600)" class="px-2.5 py-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded text-xs font-bold transition">10m</button>
                 </div>
                 
                 <!-- Main Timer Display & Controls -->
@@ -256,10 +292,24 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                         $call_grave_keeper_tonight = ($has_grave_keeper && !$is_gk_dead && $gk_charges > 0);
 
                         foreach ($all_game_roles as $role): 
-                            if (in_array($role, ['Judge', 'Citizen', 'Mirhas'])) continue;
+                            if (in_array($role, ['Judge', 'Citizen', 'Mirhas', 'Regular Mafia'])) continue;
                             
                             if ($role === 'Grave Keeper') {
                                 if (!$call_grave_keeper_tonight) continue; 
+                            } elseif ($role === 'Mafia') {
+                                // Find if there is any active/alive Mafia
+                                $mafia_active = false;
+                                $mafia_alive = false;
+                                foreach ($db['players'] as $p) {
+                                    if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'])) {
+                                        $mafia_active = true;
+                                        if ($p['status'] === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                                            $mafia_alive = true;
+                                        }
+                                    }
+                                }
+                                if (!$mafia_active) continue; 
+                                if ($gk_revealed && !$mafia_alive) continue;
                             } else {
                                 if (!isset($active_game_roles[$role])) continue; 
 
@@ -305,7 +355,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                                         <?php 
                                         if ($role === 'Grave Keeper') {
                                             echo $gk_acted_tonight ? __('gk_already_decided') : __('select_grave_keeper_action');
-                                        } elseif ($role === 'Mafia Boss') {
+                                        } elseif ($role === 'Mafia') {
                                             echo __('select_mafia_boss_target');
                                         } elseif ($role === 'Deceiver') {
                                             echo __('select_deceiver_target');
@@ -930,6 +980,24 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                     return audioCtx;
                 }
 
+                // Robust unlocker for browsers that suspend or block audio
+                function unlockAudioContext() {
+                    let ctx = getAudioContext();
+                    if (ctx) {
+                        if (ctx.state === 'suspended') {
+                            ctx.resume().then(() => {
+                                console.log("AudioContext resumed successfully via gesture.");
+                            }).catch(err => {
+                                console.warn("Could not resume AudioContext:", err);
+                            });
+                        }
+                    }
+                    document.removeEventListener('click', unlockAudioContext);
+                    document.removeEventListener('touchstart', unlockAudioContext);
+                }
+                document.addEventListener('click', unlockAudioContext);
+                document.addEventListener('touchstart', unlockAudioContext);
+
                 function playSound(type) {
                     if (localStorage.getItem('mafia_sound_muted') === 'true') return;
                     
@@ -1256,7 +1324,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                             if (JSON.stringify(data.night_actions) !== JSON.stringify(lastNightActionsState)) {
                                 lastNightActionsState = data.night_actions;
                                 if (typeof refreshNightCardUI === 'function') {
-                                    const allRoles = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Judge', 'Grave Keeper', 'Mirhas', 'Citizen'];
+                                    const allRoles = ['Mafia', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Judge', 'Grave Keeper', 'Mirhas', 'Citizen'];
                                     allRoles.forEach(r => refreshNightCardUI(r, data));
                                 }
                             }
@@ -1355,7 +1423,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                     .then(data => {
                         lastNightActionsState = data.night_actions;
                         if (typeof refreshNightCardUI === 'function') {
-                            const allRoles = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Judge', 'Grave Keeper', 'Mirhas', 'Citizen'];
+                            const allRoles = ['Mafia', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Judge', 'Grave Keeper', 'Mirhas', 'Citizen'];
                             allRoles.forEach(r => refreshNightCardUI(r, data));
                         }
                         if (typeof pollHost === 'function') {
@@ -1383,7 +1451,7 @@ $role_i18n_map['Pending'] = get_role_label('Pending');
                     .then(data => {
                         lastNightActionsState = data.night_actions;
                         if (typeof refreshNightCardUI === 'function') {
-                            const allRoles = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Judge', 'Grave Keeper', 'Mirhas', 'Citizen'];
+                            const allRoles = ['Mafia', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Judge', 'Grave Keeper', 'Mirhas', 'Citizen'];
                             allRoles.forEach(r => refreshNightCardUI(r, data));
                         }
                         if (typeof pollHost === 'function') {

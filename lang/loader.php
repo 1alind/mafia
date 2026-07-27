@@ -66,6 +66,7 @@ function get_role_label($role) {
         'Suicidal Bomb' => 'role_suicidal_bomb',
         'Citizen' => 'role_citizen',
         'Pending' => 'role_pending',
+        'Mafia' => 'team_mafia',
     ];
 
     if (isset($map[$role])) {

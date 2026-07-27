@@ -20,6 +20,7 @@ if ($player_id) {
 
 // Build role map for JS translation
 $all_game_roles = [
+    'Mafia',
     'Mafia Boss',
     'Mafia Doctor',
     'Deceiver',
@@ -46,7 +47,8 @@ foreach ($all_game_roles as $r_name) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo __('app_title_player'); ?></title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="tailwind.js"></script>
+    <script src="qrcode.min.js"></script>
     <style>
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -55,6 +57,40 @@ foreach ($all_game_roles as $r_name) {
 </head>
 <body class="bg-slate-900 text-white min-h-screen p-4 md:p-6 font-sans flex flex-col items-center justify-center space-y-4">
     
+    <?php
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $ip = $_SERVER['SERVER_ADDR'] ?? '127.0.0.1';
+        $join_url = $protocol . "://" . $host . dirname($_SERVER['PHP_SELF']);
+        if (substr($join_url, -1) !== '/') {
+            $join_url .= '/';
+        }
+    ?>
+    <!-- Server Connection Info Banner -->
+    <div class="max-w-md w-full bg-slate-800 border border-slate-700 p-4 rounded-xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="text-3xl">📡</div>
+            <div>
+                <h2 class="text-sm font-bold text-slate-200">Connect to Game</h2>
+                <p class="text-xs text-slate-400 font-mono mt-1">Domain: <span class="text-indigo-400"><?php echo htmlspecialchars($host); ?></span></p>
+                <p class="text-xs text-slate-400 font-mono">IP: <span class="text-indigo-400"><?php echo htmlspecialchars($ip); ?></span></p>
+            </div>
+        </div>
+        <div>
+            <button onclick="document.getElementById('qr-modal-player').classList.toggle('hidden'); if(!window.qrCreated){ new QRCode(document.getElementById('qrcode-container-player'), '<?php echo addslashes($join_url); ?>'); window.qrCreated=true; }" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2">
+                <span>📱</span> QR Code
+            </button>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qr-modal-player" class="hidden flex justify-center max-w-md w-full mb-2">
+        <div class="bg-white p-4 rounded-xl shadow-xl flex flex-col items-center w-full max-w-xs mx-auto">
+            <div id="qrcode-container-player" class="mb-2"></div>
+            <p class="text-xs font-bold text-slate-800 uppercase tracking-widest text-center">Scan to Join</p>
+        </div>
+    </div>
+
     <!-- Language Selector & Navigation Header Bar -->
     <div class="max-w-md w-full flex flex-col sm:flex-row justify-between items-center bg-slate-800 border border-slate-700 p-3 rounded-xl shadow-lg gap-3">
         <div class="flex flex-wrap items-center gap-3">
@@ -249,6 +285,24 @@ foreach ($all_game_roles as $r_name) {
                     }
                     return audioCtx;
                 }
+
+                // Robust unlocker for browsers that suspend or block audio
+                function unlockAudioContext() {
+                    let ctx = getAudioContext();
+                    if (ctx) {
+                        if (ctx.state === 'suspended') {
+                            ctx.resume().then(() => {
+                                console.log("AudioContext resumed successfully via gesture.");
+                            }).catch(err => {
+                                console.warn("Could not resume AudioContext:", err);
+                            });
+                        }
+                    }
+                    document.removeEventListener('click', unlockAudioContext);
+                    document.removeEventListener('touchstart', unlockAudioContext);
+                }
+                document.addEventListener('click', unlockAudioContext);
+                document.addEventListener('touchstart', unlockAudioContext);
 
                 function playSound(type) {
                     if (localStorage.getItem('mafia_sound_muted') === 'true') return;
