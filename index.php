@@ -318,7 +318,7 @@ document.addEventListener('submit', async function(e) {
              bulkFormData.append('actions', JSON.stringify(window.localNightActions));
              bulkFormData.append('ajax', '1');
              
-             await fetch(window.location.href, {
+             await fetch('actions.php?ajax=1', {
                  method: 'POST',
                  body: bulkFormData
               });
@@ -767,7 +767,7 @@ document.addEventListener('submit', async function(e) {
 
                                                 if ($role === 'Deceiver' && $p['name'] === $mafia_boss_name) continue;
                                             ?>
-                                                <option value="<?php echo $p['id']; ?>" <?php echo ($recorded_target === $p['name']) ? 'selected' : ''; ?>>
+                                                <option value="<?php echo $p['id']; ?>" data-role="<?php echo htmlspecialchars($p['role'] ?? ''); ?>" <?php echo ($recorded_target === $p['name']) ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($p['name']); ?>
                                                 </option>
                                             <?php endforeach; ?>
@@ -796,9 +796,10 @@ document.addEventListener('submit', async function(e) {
 
                                         <?php if ($role === 'Investigator'): 
                                             $eval_res = $recorded_target ? evaluate_investigation($recorded_target, $db) : '';
+                                            $is_mafia_aligned = in_array($eval_res, ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']);
                                         ?>
-                                            <div class="investigator-result text-xs font-bold p-2 rounded border text-center <?php echo $eval_res === 'Mafia' ? 'bg-rose-950/80 border-rose-800 text-rose-300 animate-pulse' : 'bg-sky-950/80 border-sky-800 text-sky-300'; ?>">
-                                                <?php echo __('investigator_result'); ?> <span class="underline uppercase"><?php echo $eval_res === 'Mafia' ? get_role_label('Regular Mafia') : get_role_label('Citizen'); ?></span>
+                                            <div class="investigator-result text-xs font-bold p-2 rounded border text-center <?php echo $is_mafia_aligned ? 'bg-rose-950/80 border-rose-800 text-rose-300 animate-pulse' : 'bg-sky-950/80 border-sky-800 text-sky-300'; ?>">
+                                                <?php echo __('investigator_result'); ?> <span class="underline uppercase"><?php echo $eval_res ? (get_role_label($eval_res) ?: htmlspecialchars($eval_res)) : ''; ?></span>
                                             </div>
                                         <?php endif; ?>
                                     </div>
@@ -1302,7 +1303,8 @@ document.addEventListener('submit', async function(e) {
                     pending: <?php echo json_encode(__('pending')); ?>,
                     decided: <?php echo json_encode(__('decided')); ?>,
                     gkDecisionRecorded: <?php echo json_encode(__('gk_decision_recorded')); ?>,
-                    selectedPrefix: <?php echo json_encode(__('selected')); ?>
+                    selectedPrefix: <?php echo json_encode(__('selected')); ?>,
+                    investigatorResult: <?php echo json_encode(__('investigator_result')); ?>
                 };
 
                 let lastRolesSharedState = <?php echo json_encode($db['roles_shared'] ?? false); ?>;
@@ -1732,83 +1734,147 @@ document.addEventListener('submit', async function(e) {
 
                 // setInterval(pollHost, 2000);
 
+                // Generic UI updates for any recorded night action
+                function updateNightCardBasicUI(card, targetName) {
+                    const statusBadge = card.querySelector('.status-badge');
+                    if (statusBadge) {
+                        statusBadge.className = "status-badge text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-bold uppercase";
+                        statusBadge.innerText = i18nTxt.recorded || 'Recorded';
+                    }
+                    
+                    const cancelBtn = card.querySelector('.cancel-btn');
+                    if (cancelBtn) cancelBtn.classList.remove('hidden');
+                    
+                    const resultContainer = card.querySelector('.result-container');
+                    if (resultContainer) {
+                        resultContainer.classList.remove('hidden');
+                    }
+                    
+                    const selectedText = card.querySelector('.selected-text');
+                    if (selectedText && targetName) {
+                        selectedText.innerText = (i18nTxt.selectedPrefix || 'Selected: ') + " " + targetName.trim();
+                    }
+                }
+
+                // Unique UI functions for each role's night action
+                function handleGenericNightAction(card, targetSelect, role) {
+                    // By default, no extra UI logic needed for generic roles
+                }
+
+                function handleInvestigatorNightAction(card, targetSelect, role) {
+                    const resultContainer = card.querySelector('.result-container');
+                    if (!resultContainer) return;
+                    
+                    const invRes = resultContainer.querySelector('.investigator-result');
+                    if (!invRes) return;
+                    
+                    if (targetSelect.value === '') {
+                        invRes.classList.add('hidden');
+                        return;
+                    }
+                    
+                    invRes.classList.remove('hidden');
+                    const targetRole = targetSelect.options[targetSelect.selectedIndex].getAttribute('data-role');
+                    let evalRes = targetRole || 'Citizen';
+                    
+                    if (targetRole === 'Mafia Boss') {
+                        evalRes = 'Citizen';
+                    }
+                    
+                    const isMafiaAligned = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(evalRes);
+                    
+                    if (isMafiaAligned) {
+                        invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-rose-950/80 border-rose-800 text-rose-300 animate-pulse';
+                        invRes.innerHTML = `${i18nTxt.investigatorResult} <span class="underline uppercase">${i18nRoles[evalRes] || evalRes}</span>`;
+                    } else {
+                        invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-sky-950/80 border-sky-800 text-sky-300';
+                        invRes.innerHTML = `${i18nTxt.investigatorResult} <span class="underline uppercase">${i18nRoles[evalRes] || evalRes}</span>`;
+                    }
+                }
+
                 // AJAX handler for night actions without full page reload
                 function handleNightActionSubmit(event, role) {
                     event.preventDefault();
                     const form = event.target;
                     const formData = new FormData(form);
-                    formData.append('ajax', '1');
+                    
+                    if (!window.localNightActions) window.localNightActions = {};
+                    window.localNightActions[role] = formData.get('target_id');
+                    
+                    const btn = form.querySelector('button[type="submit"]');
+                    if (btn) {
+                        const originalText = btn.innerText;
+                        btn.innerText = '✅ Saved';
+                        setTimeout(() => btn.innerText = originalText, 2000);
+                    }
+                    
+                    const targetSelect = form.querySelector('.target-select');
+                    let targetName = '';
+                    if (targetSelect && targetSelect.selectedIndex !== -1 && targetSelect.value !== '') {
+                        targetName = targetSelect.options[targetSelect.selectedIndex].text;
+                    }
+                    
+                    const card = form.closest('.bg-slate-900');
+                    if (card) {
+                        if (targetSelect && targetSelect.value === '') {
+                            // Equivalent to cancel
+                            cancelNightAction(role);
+                            return;
+                        }
 
-                    fetch('actions.php?ajax=1', {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
+                        updateNightCardBasicUI(card, targetName);
+                        
+                        // Dispatch to unique role functions
+                        const roleHandlers = {
+                            'Investigator': handleInvestigatorNightAction,
+                            'Police': handleGenericNightAction,
+                            'Mafia Boss': handleGenericNightAction,
+                            'Mafia Doctor': handleGenericNightAction,
+                            'Deceiver': handleGenericNightAction,
+                            'Regular Mafia': handleGenericNightAction,
+                            'Town Doctor': handleGenericNightAction,
+                            'Suicidal Bomb': handleGenericNightAction
+                        };
+                        
+                        if (roleHandlers[role]) {
+                            roleHandlers[role](card, targetSelect, role);
+                        } else {
+                            handleGenericNightAction(card, targetSelect, role);
                         }
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        lastNightActionsState = data.night_actions;
-                        if (typeof refreshNightCardUI === 'function') {
-                            const allRoles = ['Mafia', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Judge', 'Grave Keeper', 'Mirhas', 'Citizen'];
-                            allRoles.forEach(r => refreshNightCardUI(r, data));
-                        }
-                        if (typeof pollHost === 'function') {
-                            pollHost();
-                        }
-                    })
-                    .catch(err => console.error('Error submitting night action:', err));
+                    }
                 }
 
                 function cancelNightAction(role) {
                     // Update local storage
                     if (window.localNightActions) {
-                        window.localNightActions[role] = '';
+                        delete window.localNightActions[role];
                     }
 
                     // Update UI
-                    const forms = document.querySelectorAll('form');
-                    for (let form of forms) {
-                        const roleInput = form.querySelector('input[name="role"]');
-                        if (roleInput && roleInput.value === role) {
-                            const targetDisplay = form.querySelector('.target-display');
-                            if (targetDisplay) targetDisplay.innerText = '';
-                            const cancelBtn = form.querySelector('.cancel-btn');
-                            if (cancelBtn) cancelBtn.classList.add('hidden');
-                            const targetSelect = form.querySelector('.target-select');
-                            if (targetSelect) targetSelect.value = '';
-                            break;
+                    const card = document.querySelector(`[data-role-card="${role}"]`);
+                    if (card) {
+                        const targetDisplay = card.querySelector('.target-display');
+                        if (targetDisplay) targetDisplay.innerText = '';
+                        const cancelBtn = card.querySelector('.cancel-btn');
+                        if (cancelBtn) cancelBtn.classList.add('hidden');
+                        const targetSelect = card.querySelector('.target-select');
+                        if (targetSelect) targetSelect.value = '';
+                        
+                        const statusBadge = card.querySelector('.status-badge');
+                        if (statusBadge) {
+                            statusBadge.className = "status-badge text-[10px] bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded font-bold uppercase";
+                            statusBadge.innerText = i18nTxt.pending || 'Pending';
                         }
+                        
+                        const resultContainer = card.querySelector('.result-container');
+                        if (resultContainer) resultContainer.classList.add('hidden');
                     }
-
-                    const formData = new FormData();
-                    formData.append('action', 'record_night_target');
-                    formData.append('role', role);
-                    formData.append('target_id', '');
-                    formData.append('ajax', '1');
-
-                    fetch('actions.php?ajax=1', {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        lastNightActionsState = data.night_actions;
-                        if (typeof refreshNightCardUI === 'function') {
-                            const allRoles = ['Mafia', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Judge', 'Grave Keeper', 'Mirhas', 'Citizen'];
-                            allRoles.forEach(r => refreshNightCardUI(r, data));
-                        }
-                        if (typeof pollHost === 'function') {
-                            pollHost();
-                        }
-                    })
-                    .catch(err => console.error('Error canceling night action:', err));
                 }
 
                 function refreshNightCardUI(role, data) {
+                    if (window.localNightActions && window.localNightActions.hasOwnProperty(role)) {
+                        return; // Do not overwrite local unsaved changes with server state
+                    }
                     const card = document.querySelector(`[data-role-card="${role}"]`);
                     if (!card) return;
 

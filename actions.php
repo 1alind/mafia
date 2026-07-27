@@ -46,7 +46,7 @@ $needs_host_claim = empty($db['host_browser_id']);
 $is_host = (!empty($db['host_browser_id']) && $db['host_browser_id'] === $my_browser_id);
 
 // Handle AJAX state request
-if (isset($_GET['ajax']) || (isset($_GET['action']) && $_GET['action'] === 'get_state')) {
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && (isset($_GET['ajax']) || (isset($_GET['action']) && $_GET['action'] === 'get_state'))) {
     header('Content-Type: application/json');
     echo json_encode($db);
     exit;
@@ -65,14 +65,9 @@ function evaluate_investigation($target_name, $db) {
 
     if (!$target_role) return 'Citizen';
 
-    // Base identity: Mafia Boss appears as Citizen, Deceiver appears as Mafia
+    // Base identity: Mafia Boss appears as Citizen, others appear as their exact role
+    $res = $target_role;
     if ($target_role === 'Mafia Boss') {
-        $res = 'Citizen';
-    } elseif ($target_role === 'Deceiver') {
-        $res = 'Mafia';
-    } elseif (in_array($target_role, ['Mafia Doctor', 'Regular Mafia'])) {
-        $res = 'Mafia';
-    } else {
         $res = 'Citizen';
     }
     
@@ -87,14 +82,7 @@ function evaluate_investigation($target_name, $db) {
             break;
         }
     }
-    if ($deceiver_alive) {
-        $deceiver_target = $db['night_actions']['Deceiver'] ?? null;
-        if ($deceiver_target && trim($deceiver_target) === trim($target_name)) {
-            if ($target_role !== 'Mafia Boss') {
-                $res = ($res === 'Mafia') ? 'Citizen' : 'Mafia';
-            }
-        }
-    }
+    // Deceiver tricking investigator disabled based on user request.
 
     return $res;
 }
@@ -697,13 +685,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $eval_res = evaluate_investigation($investigator_target, $db);
                     $target_role = '';
                     foreach($db['players'] as $p) { if ($p['name'] === $investigator_target) $target_role = $p['role'] ?? ''; }
-                    $role_lbl_en = ($eval_res === 'Mafia') ? 'Mafia' : 'Citizen';
-                    $role_lbl_ku = ($eval_res === 'Mafia') ? 'مافیا' : 'وەلاتی';
-                    $role_lbl_ar = ($eval_res === 'Mafia') ? 'مافيا' : 'مواطن';
+                    
                     $diary[] = [
-                        'en' => "• 🔍 <strong>Investigator</strong> checked <strong class='text-amber-400'>$investigator_target</strong> (Role: $target_role) and found them as: <strong class='text-white underline'>$role_lbl_en</strong>.",
-                        'ku' => "• 🔍 <strong>ڤەکولەر</strong> ل سەر <strong class='text-amber-400'>$investigator_target</strong> لێکۆڵینەوە کر و دیت کو ئەو یێ دیارە وەک: <strong class='text-white underline'>$role_lbl_ku</strong>.",
-                        'ar' => "• 🔍 <strong>المحقق</strong> كشف على <strong class='text-amber-400'>$investigator_target</strong> وظهر له كـ: <strong class='text-white underline'>$role_lbl_ar</strong>."
+                        'en' => "• 🔍 <strong>Investigator</strong> checked <strong class='text-amber-400'>$investigator_target</strong> (Role: $target_role) and found them as: <strong class='text-white underline'>$eval_res</strong>.",
+                        'ku' => "• 🔍 <strong>ڤەکولەر</strong> ل سەر <strong class='text-amber-400'>$investigator_target</strong> لێکۆڵینەوە کر و دیت کو ئەو یێ دیارە وەک: <strong class='text-white underline'>$eval_res</strong>.",
+                        'ar' => "• 🔍 <strong>المحقق</strong> كشف على <strong class='text-amber-400'>$investigator_target</strong> وظهر له كـ: <strong class='text-white underline'>$eval_res</strong>."
                     ];
                 }
 

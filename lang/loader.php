@@ -18,9 +18,9 @@ if (isset($_GET['lang']) && array_key_exists($_GET['lang'], $available_langs)) {
     setcookie('mafia_lang', $current_lang, time() + (86400 * 365), "/");
     $_COOKIE['mafia_lang'] = $current_lang;
 } else {
-    $current_lang = $_COOKIE['mafia_lang'] ?? 'en';
+    $current_lang = $_COOKIE['mafia_lang'] ?? 'ku';
     if (!array_key_exists($current_lang, $available_langs)) {
-        $current_lang = 'en';
+        $current_lang = 'ku';
     }
 }
 
@@ -29,7 +29,7 @@ $lang_file = __DIR__ . '/' . $current_lang . '.php';
 if (file_exists($lang_file)) {
     $translations = require $lang_file;
 } else {
-    $translations = require __DIR__ . '/en.php';
+    $translations = require __DIR__ . '/ku.php';
 }
 
 /**
