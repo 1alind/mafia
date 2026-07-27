@@ -60,21 +60,11 @@ function evaluate_investigation($target_name, $db) {
             break;
         }
     }
-    
-    file_put_contents('debug.log', "Target: $target_name, Found Role: $target_role\n", FILE_APPEND);
 
     if (!$target_role) return 'Citizen';
 
-    // Base identity: Mafia Boss appears as Citizen, others appear as their exact role
-    $res = $target_role;
-    if ($target_role === 'Mafia Boss') {
-        $res = 'Citizen';
-    }
-    
-    file_put_contents('debug.log', "Target: $target_name, Role: $target_role, Base Res: $res\n", FILE_APPEND);
-
     // Deceiver's night action effect on investigator results:
-    // Deceiver can switch perceived role of any player EXCLUDING Mafia Boss, ONLY if Deceiver is alive!
+    $deceiver_target = $db['night_actions']['Deceiver'] ?? null;
     $deceiver_alive = false;
     foreach ($db['players'] as $p) {
         if (($p['role'] ?? '') === 'Deceiver' && $p['status'] === 'alive') {
@@ -82,9 +72,31 @@ function evaluate_investigation($target_name, $db) {
             break;
         }
     }
-    // Deceiver tricking investigator disabled based on user request.
 
-    return $res;
+    $is_deceived = ($deceiver_alive && $deceiver_target && trim($deceiver_target) === trim($target_name));
+
+    if ($is_deceived) {
+        // If the deceived person was a mafia, show as Citizen for investigator; if citizen, show as Mafia
+        $is_mafia_aligned = in_array($target_role, ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']);
+        if ($is_mafia_aligned) {
+            return 'Citizen';
+        } else {
+            return 'Regular Mafia';
+        }
+    }
+
+    // Normal Investigator evaluation:
+    // Mafia Boss is always a Citizen for Investigator
+    if ($target_role === 'Mafia Boss') {
+        return 'Citizen';
+    }
+
+    $is_mafia_aligned = in_array($target_role, ['Mafia Doctor', 'Deceiver', 'Regular Mafia']);
+    if ($is_mafia_aligned) {
+        return 'Regular Mafia';
+    } else {
+        return 'Citizen';
+    }
 }
 
 function check_win_conditions(&$db) {

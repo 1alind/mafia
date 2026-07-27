@@ -758,8 +758,8 @@ document.addEventListener('submit', async function(e) {
                                                 }
 
                                                 if ($role === 'Police' && $p['name'] === ($active_game_roles['Police'] ?? '')) continue;
-                                                if ($role === 'Investigator' && $p['name'] === ($active_game_roles['Investigator'] ?? '')) continue;
-                                                if ($role === 'Suicidal Bomb' && $p['name'] === ($active_game_roles['Suicidal Bomb'] ?? '')) continue;
+                                                // Investigator can target anyone in game
+                                                // Suicidal Bomb can target anyone in game
 
                                                 if ($role === 'Town Doctor' && $p['name'] === ($active_game_roles['Town Doctor'] ?? '') && $town_doc_self_count >= 2) {
                                                     continue;
@@ -1734,8 +1734,28 @@ document.addEventListener('submit', async function(e) {
 
                 // setInterval(pollHost, 2000);
 
-                // Generic UI updates for any recorded night action
+                // Helper to save action locally and show save feedback on button
+                function saveLocalNightAction(role, targetId, form) {
+                    if (!window.localNightActions) window.localNightActions = {};
+                    if (targetId) {
+                        window.localNightActions[role] = targetId;
+                    } else {
+                        delete window.localNightActions[role];
+                    }
+
+                    if (form) {
+                        const btn = form.querySelector('button[type="submit"]');
+                        if (btn) {
+                            const originalText = btn.innerText;
+                            btn.innerText = '✅ Saved';
+                            setTimeout(() => btn.innerText = originalText, 1500);
+                        }
+                    }
+                }
+
+                // Basic UI update helper
                 function updateNightCardBasicUI(card, targetName) {
+                    if (!card) return;
                     const statusBadge = card.querySelector('.status-badge');
                     if (statusBadge) {
                         statusBadge.className = "status-badge text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-bold uppercase";
@@ -1756,29 +1776,121 @@ document.addEventListener('submit', async function(e) {
                     }
                 }
 
-                // Unique UI functions for each role's night action
-                function handleGenericNightAction(card, targetSelect, role) {
-                    // By default, no extra UI logic needed for generic roles
+                // Unique function for Mafia Group night action (group shoot)
+                function handleMafiaGroupNightAction(card, targetSelect, role, form) {
+                    const targetId = targetSelect ? targetSelect.value : '';
+                    const targetName = (targetSelect && targetSelect.selectedIndex !== -1 && targetId !== '') ? targetSelect.options[targetSelect.selectedIndex].text : '';
+                    
+                    saveLocalNightAction(role, targetId, form);
+                    if (targetId === '') {
+                        cancelNightAction(role);
+                        return;
+                    }
+                    updateNightCardBasicUI(card, targetName);
                 }
 
-                function handleInvestigatorNightAction(card, targetSelect, role) {
+                // Unique function for Mafia Doctor night action
+                function handleMafiaDoctorNightAction(card, targetSelect, role, form) {
+                    const targetId = targetSelect ? targetSelect.value : '';
+                    const targetName = (targetSelect && targetSelect.selectedIndex !== -1 && targetId !== '') ? targetSelect.options[targetSelect.selectedIndex].text : '';
+                    
+                    saveLocalNightAction(role, targetId, form);
+                    if (targetId === '') {
+                        cancelNightAction(role);
+                        return;
+                    }
+                    updateNightCardBasicUI(card, targetName);
+                }
+
+                // Unique function for Deceiver night action
+                function handleDeceiverNightAction(card, targetSelect, role, form) {
+                    const targetId = targetSelect ? targetSelect.value : '';
+                    const targetName = (targetSelect && targetSelect.selectedIndex !== -1 && targetId !== '') ? targetSelect.options[targetSelect.selectedIndex].text : '';
+                    
+                    saveLocalNightAction(role, targetId, form);
+                    if (targetId === '') {
+                        cancelNightAction(role);
+                        return;
+                    }
+                    updateNightCardBasicUI(card, targetName);
+                }
+
+                // Unique function for Regular Mafia night action
+                function handleRegularMafiaNightAction(card, targetSelect, role, form) {
+                    const targetId = targetSelect ? targetSelect.value : '';
+                    const targetName = (targetSelect && targetSelect.selectedIndex !== -1 && targetId !== '') ? targetSelect.options[targetSelect.selectedIndex].text : '';
+                    
+                    saveLocalNightAction(role, targetId, form);
+                    if (targetId === '') {
+                        cancelNightAction(role);
+                        return;
+                    }
+                    updateNightCardBasicUI(card, targetName);
+                }
+
+                // Unique function for Police night action
+                function handlePoliceNightAction(card, targetSelect, role, form) {
+                    const targetId = targetSelect ? targetSelect.value : '';
+                    const targetName = (targetSelect && targetSelect.selectedIndex !== -1 && targetId !== '') ? targetSelect.options[targetSelect.selectedIndex].text : '';
+                    
+                    saveLocalNightAction(role, targetId, form);
+                    if (targetId === '') {
+                        cancelNightAction(role);
+                        return;
+                    }
+                    updateNightCardBasicUI(card, targetName);
+                }
+
+                // Unique function for Town Doctor night action
+                function handleTownDoctorNightAction(card, targetSelect, role, form) {
+                    const targetId = targetSelect ? targetSelect.value : '';
+                    const targetName = (targetSelect && targetSelect.selectedIndex !== -1 && targetId !== '') ? targetSelect.options[targetSelect.selectedIndex].text : '';
+                    
+                    saveLocalNightAction(role, targetId, form);
+                    if (targetId === '') {
+                        cancelNightAction(role);
+                        return;
+                    }
+                    updateNightCardBasicUI(card, targetName);
+                }
+
+                // Unique function for Investigator night action
+                function handleInvestigatorNightAction(card, targetSelect, role, form) {
+                    const targetId = targetSelect ? targetSelect.value : '';
+                    const targetName = (targetSelect && targetSelect.selectedIndex !== -1 && targetId !== '') ? targetSelect.options[targetSelect.selectedIndex].text : '';
+                    
+                    saveLocalNightAction(role, targetId, form);
+                    if (targetId === '') {
+                        cancelNightAction(role);
+                        return;
+                    }
+                    updateNightCardBasicUI(card, targetName);
+                    
                     const resultContainer = card.querySelector('.result-container');
                     if (!resultContainer) return;
                     
                     const invRes = resultContainer.querySelector('.investigator-result');
                     if (!invRes) return;
                     
-                    if (targetSelect.value === '') {
-                        invRes.classList.add('hidden');
-                        return;
-                    }
-                    
                     invRes.classList.remove('hidden');
-                    const targetRole = targetSelect.options[targetSelect.selectedIndex].getAttribute('data-role');
-                    let evalRes = targetRole || 'Citizen';
+                    const targetRole = targetSelect.options[targetSelect.selectedIndex].getAttribute('data-role') || 'Citizen';
                     
-                    if (targetRole === 'Mafia Boss') {
-                        evalRes = 'Citizen';
+                    // Check if target is deceived by Deceiver tonight
+                    const deceiverTargetId = window.localNightActions ? window.localNightActions['Deceiver'] : null;
+                    const isDeceived = (deceiverTargetId && deceiverTargetId === targetId);
+                    
+                    let evalRes = targetRole;
+                    if (isDeceived) {
+                        const isMafia = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(targetRole);
+                        evalRes = isMafia ? 'Citizen' : 'Regular Mafia';
+                    } else {
+                        if (targetRole === 'Mafia Boss') {
+                            evalRes = 'Citizen';
+                        } else if (['Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(targetRole)) {
+                            evalRes = 'Regular Mafia';
+                        } else {
+                            evalRes = 'Citizen';
+                        }
                     }
                     
                     const isMafiaAligned = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(evalRes);
@@ -1792,56 +1904,80 @@ document.addEventListener('submit', async function(e) {
                     }
                 }
 
-                // AJAX handler for night actions without full page reload
+                // Unique function for Suicidal Bomb night action
+                function handleSuicidalBombNightAction(card, targetSelect, role, form) {
+                    const targetId = targetSelect ? targetSelect.value : '';
+                    const targetName = (targetSelect && targetSelect.selectedIndex !== -1 && targetId !== '') ? targetSelect.options[targetSelect.selectedIndex].text : '';
+                    
+                    saveLocalNightAction(role, targetId, form);
+                    if (targetId === '') {
+                        cancelNightAction(role);
+                        return;
+                    }
+                    updateNightCardBasicUI(card, targetName);
+                }
+
+                // Unique function for Grave Keeper night action
+                function handleGraveKeeperNightAction(card, targetSelect, role, form) {
+                    const formData = new FormData(form);
+                    const answer = formData.get('reveal_answer') || 'no';
+                    
+                    saveLocalNightAction(role, answer, form);
+                    
+                    const gkButtons = card.querySelector('#gk-buttons-container');
+                    if (gkButtons) gkButtons.classList.add('hidden');
+                    
+                    const statusBadge = card.querySelector('.status-badge');
+                    if (statusBadge) {
+                        statusBadge.className = "status-badge text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-bold uppercase";
+                        statusBadge.innerText = i18nTxt.decided || 'Decided';
+                    }
+                    
+                    if (!card.querySelector('.gk-notice')) {
+                        const notice = document.createElement('div');
+                        notice.className = "gk-notice text-xs text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded border border-emerald-900 text-center mt-2";
+                        notice.innerText = i18nTxt.gkDecisionRecorded || 'Decision Recorded';
+                        form.appendChild(notice);
+                    }
+                }
+
+                // Unique function for Citizen night action
+                function handleCitizenNightAction(card, targetSelect, role, form) {
+                    const targetId = targetSelect ? targetSelect.value : '';
+                    const targetName = (targetSelect && targetSelect.selectedIndex !== -1 && targetId !== '') ? targetSelect.options[targetSelect.selectedIndex].text : '';
+                    
+                    saveLocalNightAction(role, targetId, form);
+                    if (targetId === '') {
+                        cancelNightAction(role);
+                        return;
+                    }
+                    updateNightCardBasicUI(card, targetName);
+                }
+
+                // Main Night Action Handler dispatching to dedicated role functions
                 function handleNightActionSubmit(event, role) {
                     event.preventDefault();
                     const form = event.target;
-                    const formData = new FormData(form);
-                    
-                    if (!window.localNightActions) window.localNightActions = {};
-                    window.localNightActions[role] = formData.get('target_id');
-                    
-                    const btn = form.querySelector('button[type="submit"]');
-                    if (btn) {
-                        const originalText = btn.innerText;
-                        btn.innerText = '✅ Saved';
-                        setTimeout(() => btn.innerText = originalText, 2000);
-                    }
-                    
                     const targetSelect = form.querySelector('.target-select');
-                    let targetName = '';
-                    if (targetSelect && targetSelect.selectedIndex !== -1 && targetSelect.value !== '') {
-                        targetName = targetSelect.options[targetSelect.selectedIndex].text;
-                    }
-                    
                     const card = form.closest('.bg-slate-900');
-                    if (card) {
-                        if (targetSelect && targetSelect.value === '') {
-                            // Equivalent to cancel
-                            cancelNightAction(role);
-                            return;
-                        }
-
-                        updateNightCardBasicUI(card, targetName);
-                        
-                        // Dispatch to unique role functions
-                        const roleHandlers = {
-                            'Investigator': handleInvestigatorNightAction,
-                            'Police': handleGenericNightAction,
-                            'Mafia Boss': handleGenericNightAction,
-                            'Mafia Doctor': handleGenericNightAction,
-                            'Deceiver': handleGenericNightAction,
-                            'Regular Mafia': handleGenericNightAction,
-                            'Town Doctor': handleGenericNightAction,
-                            'Suicidal Bomb': handleGenericNightAction
-                        };
-                        
-                        if (roleHandlers[role]) {
-                            roleHandlers[role](card, targetSelect, role);
-                        } else {
-                            handleGenericNightAction(card, targetSelect, role);
-                        }
-                    }
+                    
+                    const roleHandlers = {
+                        'Mafia': handleMafiaGroupNightAction,
+                        'Mafia Group': handleMafiaGroupNightAction,
+                        'Mafia Boss': handleMafiaGroupNightAction,
+                        'Mafia Doctor': handleMafiaDoctorNightAction,
+                        'Deceiver': handleDeceiverNightAction,
+                        'Regular Mafia': handleRegularMafiaNightAction,
+                        'Police': handlePoliceNightAction,
+                        'Town Doctor': handleTownDoctorNightAction,
+                        'Investigator': handleInvestigatorNightAction,
+                        'Suicidal Bomb': handleSuicidalBombNightAction,
+                        'Grave Keeper': handleGraveKeeperNightAction,
+                        'Citizen': handleCitizenNightAction
+                    };
+                    
+                    const handler = roleHandlers[role] || handleCitizenNightAction;
+                    handler(card, targetSelect, role, form);
                 }
 
                 function cancelNightAction(role) {
