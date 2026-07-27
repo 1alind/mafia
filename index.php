@@ -709,11 +709,11 @@ hr {
                                             <?php endforeach; ?>
                                         </select>
 
-                                        <div class="flex gap-2">
+                                        <div class="flex gap-2 buttons-container <?php echo $recorded_target ? 'hidden' : ''; ?>">
                                             <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 rounded uppercase tracking-wider transition shadow">
                                                 <?php echo __('confirm'); ?>
                                             </button>
-                                            <button type="button" onclick="cancelNightAction('<?php echo $role; ?>')" class="cancel-btn bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold text-xs px-3 py-2 rounded uppercase tracking-wider transition <?php echo $recorded_target ? '' : 'hidden'; ?>" title="<?php echo __('cancel'); ?>">
+                                            <button type="button" onclick="cancelNightAction('<?php echo $role; ?>')" class="cancel-btn bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold text-xs px-3 py-2 rounded uppercase tracking-wider transition hidden" title="<?php echo __('cancel'); ?>">
                                                 <?php echo __('cancel'); ?>
                                             </button>
                                         </div>
@@ -727,7 +727,15 @@ hr {
                                     <?php $recorded_target = $db['night_actions'][$role] ?? null; ?>
                                     <div class="result-container space-y-1 <?php echo $recorded_target ? '' : 'hidden'; ?>">
                                         <div class="selected-text text-xs text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded border border-emerald-900 text-center truncate">
-                                            <?php echo __('selected'); ?> <?php echo htmlspecialchars($recorded_target ?? ''); ?>
+                                            <?php if ($role === 'Investigator' && $recorded_target): 
+                                                $eval_res = evaluate_investigation($recorded_target, $db);
+                                                $is_mafia_aligned = in_array($eval_res, ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']);
+                                                $eval_display = $is_mafia_aligned ? (get_role_label('Mafia') ?: 'Mafia') : (get_role_label('Citizen') ?: 'Citizen');
+                                            ?>
+                                                <?php echo __('selected'); ?> <?php echo htmlspecialchars($recorded_target); ?>: <?php echo htmlspecialchars($eval_display); ?>
+                                            <?php else: ?>
+                                                <?php echo __('selected'); ?> <?php echo htmlspecialchars($recorded_target ?? ''); ?>
+                                            <?php endif; ?>
                                         </div>
 
                                         <?php if ($role === 'Investigator'): 

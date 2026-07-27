@@ -49,8 +49,10 @@ document.addEventListener('submit', async function(e) {
             if (targetDisplay) {
                 targetDisplay.innerText = (targetSelect && targetSelect.value !== '') ? `Target: ${targetName.trim()}` : '';
             }
+            const buttonsContainer = e.target.querySelector('.buttons-container');
+            if (buttonsContainer) buttonsContainer.classList.add('hidden');
             const cancelBtn = e.target.querySelector('.cancel-btn');
-            if (cancelBtn) cancelBtn.classList.remove('hidden');
+            if (cancelBtn) cancelBtn.classList.add('hidden');
             
             return;
         }
@@ -1856,8 +1858,13 @@ document.addEventListener('click', function(e) {
                         statusBadge.innerText = i18nTxt.recorded || 'Recorded';
                     }
                     
+                    const buttonsContainer = card.querySelector('.buttons-container');
+                    if (buttonsContainer) {
+                        buttonsContainer.classList.add('hidden');
+                    }
+                    
                     const cancelBtn = card.querySelector('.cancel-btn');
-                    if (cancelBtn) cancelBtn.classList.remove('hidden');
+                    if (cancelBtn) cancelBtn.classList.add('hidden');
                     
                     const resultContainer = card.querySelector('.result-container');
                     if (resultContainer) {
@@ -1866,7 +1873,10 @@ document.addEventListener('click', function(e) {
                     
                     const selectedText = card.querySelector('.selected-text');
                     if (selectedText && targetName) {
-                        selectedText.innerText = (i18nTxt.selectedPrefix || 'Selected: ') + " " + targetName.trim();
+                        const role = card.getAttribute('data-role-card');
+                        if (role !== 'Investigator') {
+                            selectedText.innerText = (i18nTxt.selectedPrefix || 'Selected: ') + " " + targetName.trim();
+                        }
                     }
                 }
 
@@ -2014,6 +2024,11 @@ document.addEventListener('click', function(e) {
                                     invRes.innerHTML = `${i18nTxt.investigatorResult || '🔍 Investigator Result:'} <span class="underline uppercase font-extrabold text-sm">${displayLabel}</span>`;
                                 }
 
+                                const selectedText = card.querySelector('.selected-text');
+                                if (selectedText) {
+                                    selectedText.innerText = (i18nTxt.selectedPrefix || 'Selected: ') + " " + targetName.trim() + ": " + displayLabel;
+                                }
+
                                 // Display actual exact role as requested by the user
                                 let invActualRes = resultContainer.querySelector('.investigator-actual-role');
                                 if (!invActualRes) {
@@ -2117,6 +2132,16 @@ document.addEventListener('click', function(e) {
                         const card = e.target.closest('[data-role-card]');
                         if (card) {
                             const role = card.getAttribute('data-role-card');
+                            
+                            // Show confirm button container when target selection is changed
+                            const buttonsContainer = card.querySelector('.buttons-container');
+                            if (buttonsContainer) {
+                                buttonsContainer.classList.remove('hidden');
+                                // Ensure only the Confirm button is visible (Cancel button is hidden)
+                                const cancelBtn = buttonsContainer.querySelector('.cancel-btn');
+                                if (cancelBtn) cancelBtn.classList.add('hidden');
+                            }
+                            
                             if (role === 'Investigator') {
                                 handleInvestigatorNightAction(card, e.target, 'Investigator', e.target.form);
                             }
@@ -2194,7 +2219,11 @@ document.addEventListener('click', function(e) {
                                 statusBadge.className = "status-badge text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-bold uppercase";
                                 statusBadge.innerText = i18nTxt.recorded;
                             }
-                            if (cancelBtn) cancelBtn.classList.remove('hidden');
+                            const buttonsContainer = card.querySelector('.buttons-container');
+                            if (buttonsContainer) {
+                                buttonsContainer.classList.add('hidden');
+                            }
+                            if (cancelBtn) cancelBtn.classList.add('hidden');
                             if (resultContainer) resultContainer.classList.remove('hidden');
                             if (selectedText) selectedText.innerText = i18nTxt.selectedPrefix + " " + recordedTarget;
 
@@ -2237,6 +2266,10 @@ document.addEventListener('click', function(e) {
                                             invRes.className = 'investigator-result text-xs font-bold p-2 rounded border text-center bg-sky-950/80 border-sky-800 text-sky-300 mt-1';
                                         }
                                         invRes.innerHTML = `${i18nTxt.investigatorResult || '🔍 Investigator Result:'} <span class="underline uppercase font-extrabold text-sm">${displayLabel}</span>`;
+                                    }
+
+                                    if (selectedText) {
+                                        selectedText.innerText = (i18nTxt.selectedPrefix || 'Selected: ') + " " + recordedTarget + ": " + displayLabel;
                                     }
 
                                     let invActualRes = resultContainer.querySelector('.investigator-actual-role');
