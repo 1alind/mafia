@@ -898,9 +898,14 @@ hr {
                 
                 <!-- Main Control Card -->
                 <div class="md:col-span-2 bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-6 shadow-lg">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-lg font-bold text-slate-200"><?php echo __('lobby_and_players'); ?></h2>
-                        <div class="text-xs font-bold bg-slate-800 px-3 py-1.5 rounded border border-slate-700 text-sky-400">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-lg font-bold text-slate-200"><?php echo __('lobby_and_players'); ?></h2>
+                            <button onclick="window.location.reload();" class="bg-indigo-600 hover:bg-indigo-700 text-white border border-indigo-500 rounded-lg px-2.5 py-1 text-[10px] font-black transition flex items-center gap-1 shadow-sm">
+                                🔄 <?php echo get_current_lang() === 'ku' ? 'نووکرن' : (get_current_lang() === 'ar' ? 'تحديث' : 'Refresh'); ?>
+                            </button>
+                        </div>
+                        <div class="text-xs font-bold bg-slate-800 px-3 py-1.5 rounded border border-slate-700 text-sky-400 self-start sm:self-auto">
                             <?php echo __('connected_players'); ?> <span id="online-count"><?php echo count($db['players']); ?></span>
                         </div>
                     </div>

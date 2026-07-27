@@ -1413,10 +1413,6 @@ document.addEventListener('click', function(e) {
                             state = initializeGameState(window.serverPlayers, window.serverResetToken);
                         }
                         renderHostUI();
-                    } else {
-                        setInterval(() => {
-                            if (typeof pollHost === 'function') pollHost();
-                        }, 2500);
                     }
                 });
 

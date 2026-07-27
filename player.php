@@ -399,6 +399,12 @@ socket.onclose = () => console.log('WebSocket disconnected');
                 </div>
 
                 <div class="text-xs text-slate-400"><?php echo __('current_phase'); ?>: <strong id="phase-display" class="uppercase text-white"><?php echo htmlspecialchars(__('phase_' . $db['phase']) . ($db['phase'] !== 'setup' ? ' ' . $db['day'] : '')); ?></strong></div>
+
+                <div class="pt-2">
+                    <button onclick="window.location.reload();" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-lg text-xs uppercase tracking-wider shadow transition flex items-center justify-center gap-2">
+                        🔄 <?php echo get_current_lang() === 'ku' ? 'نووکرنا دیتایێ' : (get_current_lang() === 'ar' ? 'تحديث البيانات' : 'Sync Status / Refresh'); ?>
+                    </button>
+                </div>
             </div>
 
             <script>
@@ -611,11 +617,6 @@ socket.onclose = () => console.log('WebSocket disconnected');
                 // --- INITIAL LOAD LOGIC ---
                 document.addEventListener('DOMContentLoaded', () => {
                     updateMuteUI();
-                    // Only poll if the roles are not shared yet (waiting for the game to start)
-                    if (myPlayerId && !initialRolesShared) {
-                        stopPolling();
-                        pollTimer = setInterval(pollPlayer, 2000); // Poll slower (every 2 seconds) during lobby
-                    }
                 });
 
                 // Helper to get cookie value
