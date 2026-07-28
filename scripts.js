@@ -320,6 +320,10 @@ document.addEventListener('click', function(e) {
                 }
 
                 function initializeGameState(serverPlayers, resetToken) {
+                    try {
+                        localStorage.removeItem('grave_keeper_revealed_roles');
+                        localStorage.removeItem('mafia_gk_revealed');
+                    } catch(e) {}
                     const state = {
                         phase: 'night',
                         day: 1,
@@ -661,7 +665,7 @@ document.addEventListener('click', function(e) {
                         }
 
                         let revealed_roles = {};
-                        if (state.grave_keeper_reveal_pending) {
+                        if (state.grave_keeper_reveal_pending || state.grave_keeper_revealed_roles) {
                             state.players.forEach(p => {
                                 if (p.status === 'dead' || final_killed.includes(p.name)) {
                                     revealed_roles[p.name] = p.role || 'Citizen';
@@ -670,8 +674,6 @@ document.addEventListener('click', function(e) {
                             state.grave_keeper_revealed_roles = true;
                             state.grave_keeper_reveal_pending = false;
                             state.gravedigger_reveal_pending = false;
-                        } else {
-                            state.grave_keeper_revealed_roles = false;
                         }
 
                         state.last_night_report = {
@@ -694,7 +696,6 @@ document.addEventListener('click', function(e) {
                         state.day = (state.day || 1) + 1;
                         state.last_night_report = null;
                         state.investigation_results = [];
-                        state.grave_keeper_revealed_roles = false;
                         state.grave_keeper_acted_tonight = false;
                         state.logs.push(`Day ${state.day - 1} ended. Night ${state.day} started.`);
 
@@ -813,13 +814,13 @@ document.addEventListener('click', function(e) {
                             state.grave_keeper_charges = (state.grave_keeper_charges || 2) - 1;
                             state.gravedigger_charges = state.grave_keeper_charges;
                         }
+                        state.grave_keeper_revealed_roles = true;
                         state.logs.push(`🪦 Grave Keeper decided to REVEAL dead players' roles tonight.`);
                     } else {
                         state.grave_keeper_reveal_pending = false;
                         state.logs.push(`🪦 Grave Keeper decided to KEEP dead players' roles hidden tonight.`);
                     }
 
-                    state.grave_keeper_revealed_roles = false;
                     state.grave_keeper_acted_tonight = true;
 
                     saveGameState(state);
@@ -943,7 +944,16 @@ document.addEventListener('click', function(e) {
                     // 2. NIGHT PHASE GUIDED ASSISTANT
                     if (state.phase === 'night') {
                         const gkCharges = state.grave_keeper_charges !== undefined ? state.grave_keeper_charges : 2;
-                        const gkRevealed = state.grave_keeper_revealed_roles || false;
+                        const localStorageGkReveal = (localStorage.getItem('grave_keeper_revealed_roles') === 'true') || (localStorage.getItem('mafia_gk_revealed') === 'true');
+                        const domGkReveal = (document.getElementById('hidden_gk_revealed')?.value === 'true') || (document.getElementById('gk_revealed_data_store')?.dataset?.revealed === 'true');
+                        const gkRevealed = !!(state.grave_keeper_revealed_roles || state.roles_shared || localStorageGkReveal || domGkReveal);
+
+                        if (gkRevealed) {
+                            try {
+                                localStorage.setItem('grave_keeper_revealed_roles', 'true');
+                                localStorage.setItem('mafia_gk_revealed', 'true');
+                            } catch (e) {}
+                        }
 
                         html += `
                             <div class="bg-indigo-950/60 border-2 border-indigo-500/60 p-6 rounded-xl space-y-5 shadow-2xl">
@@ -988,10 +998,11 @@ document.addEventListener('click', function(e) {
                                     if (!mafiaAlive) return;
                                 }
                             } else {
-                                if (!assignedRoles[role]) return;
+                                const roleHolders = state.players.filter(p => p.role === role);
+                                if (roleHolders.length === 0) return;
                                 if (gkRevealed) {
-                                    const playerWithRole = state.players.find(p => p.role === role);
-                                    if (playerWithRole && (playerWithRole.status === 'dead' || state.delayed_departure.includes(playerWithRole.name))) return;
+                                    const allDeadOrOut = roleHolders.every(p => p.status === 'dead' || state.delayed_departure.includes(p.name));
+                                    if (allDeadOrOut) return;
                                 }
                             }
 
@@ -1000,10 +1011,9 @@ document.addEventListener('click', function(e) {
                                 const mafiaAlive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role) && p.status === 'alive' && !state.delayed_departure.includes(p.name));
                                 if (!mafiaAlive) isRoleHolderDead = true;
                             } else if (role !== 'Grave Keeper') {
-                                const playerWithRole = state.players.find(p => p.role === role);
-                                if (!playerWithRole || playerWithRole.status !== 'alive' || state.delayed_departure.includes(playerWithRole.name)) {
-                                    isRoleHolderDead = true;
-                                }
+                                const roleHolders = state.players.filter(p => p.role === role);
+                                const allDead = roleHolders.length === 0 || roleHolders.every(p => p.status === 'dead' || state.delayed_departure.includes(p.name));
+                                if (allDead) isRoleHolderDead = true;
                             }
 
                             const recordedTargetId = state.night_actions[role] || null;
@@ -2120,6 +2130,13 @@ document.addEventListener('click', function(e) {
                     if (targetId === '') return;
                     
                     saveLocalNightAction(role, targetId, form);
+
+                    if (targetId === 'yes') {
+                        try {
+                            localStorage.setItem('grave_keeper_revealed_roles', 'true');
+                            localStorage.setItem('mafia_gk_revealed', 'true');
+                        } catch(e) {}
+                    }
                     
                     const gkButtons = card.querySelector('#gk-buttons-container');
                     if (gkButtons) gkButtons.classList.add('hidden');

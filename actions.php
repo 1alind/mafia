@@ -227,6 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 $db['roles_shared'] = true;
+                $db['grave_keeper_revealed_roles'] = true;
                 $db['phase'] = 'night';
                 $db['day'] = 1;
                 $db['night_actions'] = [];
@@ -376,6 +377,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 if ($answer === 'yes') {
                     $db['grave_keeper_reveal_pending'] = true;
+                    $db['grave_keeper_revealed_roles'] = true;
                     if (($db['grave_keeper_charges'] ?? 2) > 0) {
                         $db['grave_keeper_charges'] = ($db['grave_keeper_charges'] ?? 2) - 1;
                         $db['gravedigger_charges'] = $db['grave_keeper_charges'];
@@ -383,7 +385,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 } else {
                     $db['grave_keeper_reveal_pending'] = false;
                 }
-                $db['grave_keeper_revealed_roles'] = false;
                 $db['grave_keeper_acted_tonight'] = true;
                 $db['night_actions']['Grave Keeper'] = $answer;
             } else {
@@ -451,6 +452,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                     if ($answer === 'yes') {
                         $db['grave_keeper_reveal_pending'] = true;
+                        $db['grave_keeper_revealed_roles'] = true;
                         if (($db['grave_keeper_charges'] ?? 2) > 0) {
                             $db['grave_keeper_charges'] = ($db['grave_keeper_charges'] ?? 2) - 1;
                             $db['gravedigger_charges'] = $db['grave_keeper_charges'];
@@ -458,7 +460,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     } else {
                         $db['grave_keeper_reveal_pending'] = false;
                     }
-                    $db['grave_keeper_revealed_roles'] = false;
                     $db['grave_keeper_acted_tonight'] = true;
                     $db['night_actions']['Grave Keeper'] = $answer;
                     continue;
@@ -521,6 +522,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             if ($answer === 'yes') {
                 $db['grave_keeper_reveal_pending'] = true;
+                $db['grave_keeper_revealed_roles'] = true;
                 if (($db['grave_keeper_charges'] ?? 2) > 0) {
                     $db['grave_keeper_charges'] = ($db['grave_keeper_charges'] ?? 2) - 1;
                     $db['gravedigger_charges'] = $db['grave_keeper_charges'];
@@ -528,7 +530,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             } else {
                 $db['grave_keeper_reveal_pending'] = false;
             }
-            $db['grave_keeper_revealed_roles'] = false;
             $db['grave_keeper_acted_tonight'] = true;
             save_db($db);
 
@@ -911,7 +912,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 $revealed_roles = [];
-                if ($db['grave_keeper_reveal_pending'] ?? false) {
+                if (($db['grave_keeper_reveal_pending'] ?? false) || ($db['grave_keeper_revealed_roles'] ?? false)) {
                     foreach ($db['players'] as $p) {
                         if (($p['status'] ?? '') === 'dead' || in_array($p['name'], $final_killed)) {
                             $revealed_roles[$p['name']] = $p['role'] ?? 'Citizen';
@@ -920,8 +921,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $db['grave_keeper_revealed_roles'] = true;
                     $db['grave_keeper_reveal_pending'] = false;
                     $db['gravedigger_reveal_pending'] = false;
-                } else {
-                    $db['grave_keeper_revealed_roles'] = false;
                 }
 
                 $db['last_night_report'] = [
@@ -944,7 +943,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $db['day'] = ($db['day'] ?? 1) + 1;
                 $db['last_night_report'] = null;
                 $db['investigation_results'] = [];
-                $db['grave_keeper_revealed_roles'] = false;
                 $db['grave_keeper_acted_tonight'] = false;
                 $db['logs'][] = "Day " . ($db['day'] - 1) . " ended. Night {$db['day']} started.";
 

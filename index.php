@@ -522,12 +522,18 @@ hr {
 
                     <p class="text-xs text-amber-300 bg-amber-950/40 border border-amber-900/60 p-3 rounded-lg">
                         ⚠️ <strong><?php echo __('host_calling_rule'); ?></strong> 
-                        <?php if ($db['grave_keeper_revealed_roles'] ?? false): ?>
+                        <?php if (($db['grave_keeper_revealed_roles'] ?? false) || ($db['roles_shared'] ?? false)): ?>
                             <?php echo __('gk_skip_calling_rule'); ?>
                         <?php else: ?>
                             <?php echo __('gk_call_all_rule'); ?>
                         <?php endif; ?>
                     </p>
+
+                    <?php 
+                    $gk_revealed = ($db['grave_keeper_revealed_roles'] ?? false) || ($db['roles_shared'] ?? false);
+                    ?>
+                    <input type="hidden" id="hidden_gk_revealed" value="<?php echo $gk_revealed ? 'true' : 'false'; ?>">
+                    <div id="gk_revealed_data_store" data-revealed="<?php echo $gk_revealed ? 'true' : 'false'; ?>" class="hidden"></div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <?php 
@@ -541,7 +547,6 @@ hr {
 
                         $gk_charges = $db['grave_keeper_charges'] ?? 2;
                         $has_grave_keeper = isset($active_game_roles['Grave Keeper']);
-                        $gk_revealed = $db['grave_keeper_revealed_roles'] ?? false;
                         $gk_acted_tonight = $db['grave_keeper_acted_tonight'] ?? false;
 
                         $is_gk_dead = false;
@@ -577,18 +582,20 @@ hr {
                                 if (!$mafia_active) continue; 
                                 if ($gk_revealed && !$mafia_alive) continue;
                             } else {
-                                if (!isset($active_game_roles[$role])) continue; 
+                                $role_holders = array_filter($db['players'], function($pl) use ($role) {
+                                    return ($pl['role'] ?? '') === $role;
+                                });
+                                if (empty($role_holders)) continue; 
 
                                 if ($gk_revealed) {
-                                    $player_name_for_role = $active_game_roles[$role];
-                                    $is_role_dead_or_out = false;
-                                    foreach ($db['players'] as $pl) {
-                                        if ($pl['name'] === $player_name_for_role && ($pl['status'] === 'dead' || in_array($pl['name'], $db['delayed_departure'] ?? []))) {
-                                            $is_role_dead_or_out = true;
+                                    $all_dead_or_out = true;
+                                    foreach ($role_holders as $pl) {
+                                        if (($pl['status'] ?? '') === 'alive' && !in_array($pl['name'], $db['delayed_departure'] ?? [])) {
+                                            $all_dead_or_out = false;
                                             break;
                                         }
                                     }
-                                    if ($is_role_dead_or_out) continue; 
+                                    if ($all_dead_or_out) continue; 
                                 }
                             }
 
@@ -605,20 +612,24 @@ hr {
                                 }
                                 if (!$mafia_active_alive) $is_role_holder_dead = true;
                             } elseif ($role !== 'Grave Keeper') {
-                                $player_name_for_role = $active_game_roles[$role] ?? null;
-                                if ($player_name_for_role) {
-                                    foreach ($db['players'] as $pl) {
-                                        if ($pl['name'] === $player_name_for_role && ($pl['status'] !== 'alive' || in_array($pl['name'], $db['delayed_departure'] ?? []))) {
-                                            $is_role_holder_dead = true;
+                                $role_holders = array_filter($db['players'], function($pl) use ($role) {
+                                    return ($pl['role'] ?? '') === $role;
+                                });
+                                if (empty($role_holders)) {
+                                    $is_role_holder_dead = true;
+                                } else {
+                                    $all_dead = true;
+                                    foreach ($role_holders as $pl) {
+                                        if (($pl['status'] ?? '') === 'alive' && !in_array($pl['name'], $db['delayed_departure'] ?? [])) {
+                                            $all_dead = false;
                                             break;
                                         }
                                     }
-                                } else {
-                                    $is_role_holder_dead = true;
+                                    $is_role_holder_dead = $all_dead;
                                 }
                             }
                         ?>
-                            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-4" data-role-card="<?php echo $role; ?>">
+                            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-4" data-role-card="<?php echo $role; ?>" data-role-dead="<?php echo $is_role_holder_dead ? 'true' : 'false'; ?>">
                                 <div>
                                     <div class="flex justify-between items-center">
                                         <span class="font-black text-sm text-rose-400">
@@ -808,6 +819,23 @@ hr {
                             </div>
                         <?php endforeach; ?>
                     </div>
+                    <script>
+                    (function() {
+                        try {
+                            const isRevealed = (localStorage.getItem('grave_keeper_revealed_roles') === 'true') ||
+                                               (localStorage.getItem('mafia_gk_revealed') === 'true') ||
+                                               (window.isRolesShared === true);
+                            if (isRevealed) {
+                                document.querySelectorAll('[data-role-card]').forEach(function(card) {
+                                    if (card.getAttribute('data-role-dead') === 'true') {
+                                        card.style.display = 'none';
+                                        card.classList.add('hidden');
+                                    }
+                                });
+                            }
+                        } catch(e) {}
+                    })();
+                    </script>
                 </div>
             <?php endif; ?>
 
