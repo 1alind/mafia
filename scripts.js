@@ -697,6 +697,12 @@ document.addEventListener('click', function(e) {
                         state.last_night_report = null;
                         state.investigation_results = [];
                         state.grave_keeper_acted_tonight = false;
+                        state.grave_keeper_revealed_roles = false;
+                        state.grave_keeper_reveal_pending = false;
+                        try {
+                            localStorage.removeItem('grave_keeper_revealed_roles');
+                            localStorage.removeItem('mafia_gk_revealed');
+                        } catch(e) {}
                         state.logs.push(`Day ${state.day - 1} ended. Night ${state.day} started.`);
 
                         checkWinConditions(state);
@@ -2144,6 +2150,11 @@ document.addEventListener('click', function(e) {
                             localStorage.setItem('grave_keeper_revealed_roles', 'true');
                             localStorage.setItem('mafia_gk_revealed', 'true');
                         } catch(e) {}
+                    } else {
+                        try {
+                            localStorage.removeItem('grave_keeper_revealed_roles');
+                            localStorage.removeItem('mafia_gk_revealed');
+                        } catch(e) {}
                     }
                     
                     const gkButtons = card.querySelector('#gk-buttons-container');
@@ -2251,6 +2262,10 @@ document.addEventListener('click', function(e) {
                             if (gkButtons) gkButtons.classList.remove('hidden');
                             const notice = card.querySelector('.gk-notice');
                             if (notice) notice.remove();
+                            try {
+                                localStorage.removeItem('grave_keeper_revealed_roles');
+                                localStorage.removeItem('mafia_gk_revealed');
+                            } catch(e) {}
                         }
                         
                         const resultContainer = card.querySelector('.result-container');
