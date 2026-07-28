@@ -279,6 +279,7 @@ hr {
         decided: <?php echo json_encode(__('decided')); ?>,
         gkDecisionRecorded: <?php echo json_encode(__('gk_decision_recorded')); ?>,
         selectedPrefix: <?php echo json_encode(__('selected')); ?>,
+        noneNoSelection: <?php echo json_encode(__('none_no_selection')); ?>,
         investigatorResult: <?php echo json_encode(__('investigator_result')); ?>
     };
     window.lastRolesSharedState = <?php echo json_encode($db['roles_shared'] ?? false); ?>;
@@ -590,6 +591,32 @@ hr {
                                     if ($is_role_dead_or_out) continue; 
                                 }
                             }
+
+                            $is_role_holder_dead = false;
+                            if ($role === 'Mafia') {
+                                $mafia_active_alive = false;
+                                foreach ($db['players'] as $p) {
+                                    if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'])) {
+                                        if ($p['status'] === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                                            $mafia_active_alive = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (!$mafia_active_alive) $is_role_holder_dead = true;
+                            } elseif ($role !== 'Grave Keeper') {
+                                $player_name_for_role = $active_game_roles[$role] ?? null;
+                                if ($player_name_for_role) {
+                                    foreach ($db['players'] as $pl) {
+                                        if ($pl['name'] === $player_name_for_role && ($pl['status'] !== 'alive' || in_array($pl['name'], $db['delayed_departure'] ?? []))) {
+                                            $is_role_holder_dead = true;
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    $is_role_holder_dead = true;
+                                }
+                            }
                         ?>
                             <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-4" data-role-card="<?php echo $role; ?>">
                                 <div>
@@ -611,9 +638,15 @@ hr {
                                             <?php 
                                             $recorded_target = $db['night_actions'][$role] ?? null;
                                             ?>
-                                            <span class="status-badge text-[10px] px-2 py-0.5 rounded font-bold uppercase <?php echo $recorded_target ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800'; ?>">
-                                                <?php echo $recorded_target ? __('recorded') : __('pending'); ?>
-                                            </span>
+                                            <?php if ($is_role_holder_dead): ?>
+                                                <span class="status-badge text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-slate-800 text-slate-400 border border-slate-700">
+                                                    <?php echo __('inactive'); ?>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="status-badge text-[10px] px-2 py-0.5 rounded font-bold uppercase <?php echo $recorded_target ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800'; ?>">
+                                                    <?php echo $recorded_target ? __('recorded') : __('pending'); ?>
+                                                </span>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </div>
                                     <p class="text-xs text-slate-400 mt-1">
@@ -641,6 +674,11 @@ hr {
                                     </p>
                                 </div>
 
+                                <?php if ($is_role_holder_dead && $role !== 'Grave Keeper'): ?>
+                                    <div class="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded border border-rose-900/60 text-center font-bold italic">
+                                        🚫 <?php echo __('role_holder_eliminated'); ?>
+                                    </div>
+                                <?php else: ?>
                                 <form onsubmit="handleNightActionSubmit(event, '<?php echo $role; ?>')" class="space-y-2">
                                     <?php if ($role === 'Grave Keeper'): ?>
                                         <input type="hidden" name="action" value="record_night_target">
@@ -680,7 +718,7 @@ hr {
                                         <input type="hidden" name="action" value="record_night_target">
                                         <input type="hidden" name="role" value="<?php echo $role; ?>">
                                         <select name="target_id" class="target-select w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded p-2 focus:outline-none focus:border-rose-500">
-                                            <option value=""><?php echo __('none_no_selection'); ?></option>
+                                            <option value="none" <?php echo ($recorded_target === 'none') ? 'selected' : ''; ?>><?php echo __('none_no_selection'); ?></option>
                                             <?php 
                                             $town_doc_self_count = $db['town_doctor_self_protect_count'] ?? 0;
                                             $mafia_boss_name = $active_game_roles['Mafia Boss'] ?? '';
@@ -703,7 +741,7 @@ hr {
 
                                                 if ($role === 'Deceiver' && $p['name'] === $mafia_boss_name) continue;
                                             ?>
-                                                <option value="<?php echo $p['id']; ?>" data-role="<?php echo htmlspecialchars($p['role'] ?? ''); ?>" <?php echo ($recorded_target === $p['name']) ? 'selected' : ''; ?>>
+                                                <option value="<?php echo $p['id']; ?>" data-role="<?php echo htmlspecialchars($p['role'] ?? ''); ?>" <?php echo ($recorded_target === $p['name'] || $recorded_target === $p['id']) ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($p['name']); ?>
                                                 </option>
                                             <?php endforeach; ?>
@@ -720,12 +758,15 @@ hr {
                                         <div class="target-display text-xs text-emerald-400 mt-2 font-bold text-center italic"></div>
                                     <?php endif; ?>
                                 </form>
+                                <?php endif; ?>
 
-                                <?php if ($role !== 'Grave Keeper'): ?>
+                                <?php if ($role !== 'Grave Keeper' && !$is_role_holder_dead): ?>
                                     <?php $recorded_target = $db['night_actions'][$role] ?? null; ?>
                                     <div class="result-container space-y-1 <?php echo $recorded_target ? '' : 'hidden'; ?>">
                                         <div class="selected-text text-xs text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded border border-emerald-900 text-center truncate">
-                                            <?php if ($role === 'Investigator' && $recorded_target): 
+                                            <?php if ($recorded_target === 'none'): ?>
+                                                <?php echo __('selected'); ?> <?php echo __('none_no_selection'); ?>
+                                            <?php elseif ($role === 'Investigator' && $recorded_target): 
                                                 $eval_res = evaluate_investigation($recorded_target, $db);
                                                 $is_mafia_aligned = in_array($eval_res, ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']);
                                                 $eval_display = $is_mafia_aligned ? (get_role_label('Mafia') ?: 'Mafia') : (get_role_label('Citizen') ?: 'Citizen');

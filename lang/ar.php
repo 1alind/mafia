@@ -67,6 +67,8 @@ return [
     'gk_option_no' => 'لا - عدم الكشف',
     'confirm_decision' => 'تأكيد القرار',
     'none_no_selection' => '-- لا يوجد اختيار --',
+    'role_holder_eliminated' => 'صاحب الدور مستبعد - لا توجد صلاحية للاختيار',
+    'inactive' => 'غير نشط',
     'confirm' => 'تأكيد',
     'cancel' => '✕ إلغاء',
     'selected' => 'تم اختيار:',

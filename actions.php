@@ -389,25 +389,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             } else {
                 $target_name = null;
 
-                if ($target_id !== '') {
-                    foreach ($db['players'] as $p) {
-                        if ($p['id'] === $target_id) {
-                            $target_name = $p['name'];
-                            break;
+                if ($target_id === 'none') {
+                    $db['night_actions'][$role] = 'none';
+                } else {
+                    if ($target_id !== '') {
+                        foreach ($db['players'] as $p) {
+                            if ($p['id'] === $target_id) {
+                                $target_name = $p['name'];
+                                break;
+                            }
                         }
                     }
-                }
 
-                if ($target_name) {
-                    $db['night_actions'][$role] = $target_name;
-                } else {
-                    unset($db['night_actions'][$role]);
+                    if ($target_name) {
+                        $db['night_actions'][$role] = $target_name;
+                    } else {
+                        unset($db['night_actions'][$role]);
+                    }
                 }
             }
 
             // Always recalculate investigation result if Investigator target is selected
             $investigator_target = $db['night_actions']['Investigator'] ?? null;
-            if ($investigator_target) {
+            if ($investigator_target && $investigator_target !== 'none') {
                 $eval_res = evaluate_investigation($investigator_target, $db);
                 $db['investigation_results'] = [
                     ['target' => $investigator_target, 'result' => $eval_res]
@@ -461,24 +465,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 $target_name = null;
-                if ($target_id !== '') {
-                    foreach ($db['players'] as $p) {
-                        if ($p['id'] === $target_id || $p['name'] === $target_id) {
-                            $target_name = $p['name'];
-                            break;
+                if ($target_id === 'none') {
+                    $db['night_actions'][$role] = 'none';
+                } else {
+                    if ($target_id !== '') {
+                        foreach ($db['players'] as $p) {
+                            if ($p['id'] === $target_id || $p['name'] === $target_id) {
+                                $target_name = $p['name'];
+                                break;
+                            }
                         }
                     }
-                }
-                if ($target_name) {
-                    $db['night_actions'][$role] = $target_name;
-                } else {
-                    unset($db['night_actions'][$role]);
+                    if ($target_name) {
+                        $db['night_actions'][$role] = $target_name;
+                    } else {
+                        unset($db['night_actions'][$role]);
+                    }
                 }
             }
             
             // Always recalculate investigation result if Investigator target is selected
             $investigator_target = $db['night_actions']['Investigator'] ?? null;
-            if ($investigator_target) {
+            if ($investigator_target && $investigator_target !== 'none') {
                 $eval_res = evaluate_investigation($investigator_target, $db);
                 $db['investigation_results'] = [
                     ['target' => $investigator_target, 'result' => $eval_res]
@@ -539,6 +547,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $town_doc_target = $db['night_actions']['Town Doctor'] ?? null;
                 $police_target = $db['night_actions']['Police'] ?? null;
                 $suicidal_bomb_target = $db['night_actions']['Suicidal Bomb'] ?? null;
+
+                if ($mafia_target === 'none') $mafia_target = null;
+                if ($mafia_doc_target === 'none') $mafia_doc_target = null;
+                if ($town_doc_target === 'none') $town_doc_target = null;
+                if ($police_target === 'none') $police_target = null;
+                if ($suicidal_bomb_target === 'none') $suicidal_bomb_target = null;
+
+                // Validate alive status of role holders
+                if ($town_doc_target) {
+                    $town_doc_alive = false;
+                    foreach ($db['players'] as $p) {
+                        if (($p['role'] ?? '') === 'Town Doctor' && $p['status'] === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                            $town_doc_alive = true;
+                            break;
+                        }
+                    }
+                    if (!$town_doc_alive) $town_doc_target = null;
+                }
+
+                if ($mafia_doc_target) {
+                    $mafia_doc_alive = false;
+                    foreach ($db['players'] as $p) {
+                        if (($p['role'] ?? '') === 'Mafia Doctor' && $p['status'] === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                            $mafia_doc_alive = true;
+                            break;
+                        }
+                    }
+                    if (!$mafia_doc_alive) $mafia_doc_target = null;
+                }
+
+                if ($mafia_target) {
+                    $mafia_alive = false;
+                    foreach ($db['players'] as $p) {
+                        if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']) && $p['status'] === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                            $mafia_alive = true;
+                            break;
+                        }
+                    }
+                    if (!$mafia_alive) $mafia_target = null;
+                }
+
+                if ($police_target) {
+                    $police_player_name = null;
+                    foreach ($db['players'] as $p) {
+                        if (($p['role'] ?? '') === 'Police' && $p['status'] === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                            $police_player_name = $p['name'];
+                            break;
+                        }
+                    }
+                    if (!$police_player_name) $police_target = null;
+                }
+
+                if ($suicidal_bomb_target) {
+                    $bomb_player_name = null;
+                    foreach ($db['players'] as $p) {
+                        if (($p['role'] ?? '') === 'Suicidal Bomb' && $p['status'] === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                            $bomb_player_name = $p['name'];
+                            break;
+                        }
+                    }
+                    if (!$bomb_player_name) $suicidal_bomb_target = null;
+                }
 
                 if ($town_doc_target) {
                     foreach ($db['players'] as $p) {

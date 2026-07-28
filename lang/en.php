@@ -68,6 +68,8 @@ return [
     'gk_option_no' => 'No - Do not reveal',
     'confirm_decision' => 'Confirm Decision',
     'none_no_selection' => '-- None / No Selection --',
+    'role_holder_eliminated' => 'Role holder is eliminated - No action available',
+    'inactive' => 'Inactive',
     'confirm' => 'Confirm',
     'cancel' => '✕ Cancel',
     'selected' => 'Selected:',

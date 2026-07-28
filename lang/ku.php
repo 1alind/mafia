@@ -58,6 +58,8 @@ return [
     'gk_option_no' => 'نەخێر - ئاشکرا نەکە',
     'confirm_decision' => 'پشتڕاستکرنا بڕیارێ',
     'none_no_selection' => '-- چ نەهاتیە هەڵبژارتن --',
+    'role_holder_eliminated' => 'خودانێ ڕۆل هاتيه‌ ده‌رئێخستن - چ هه‌ڵبژارتن نینه‌',
+    'inactive' => 'نەچالاک',
     'confirm' => 'پشتڕاستکرن',
     'cancel' => '✕ لێڤەبون',
     'selected' => 'هاتە هەڵبژارتن:',

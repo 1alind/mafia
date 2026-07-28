@@ -995,9 +995,20 @@ document.addEventListener('click', function(e) {
                                 }
                             }
 
+                            let isRoleHolderDead = false;
+                            if (role === 'Mafia') {
+                                const mafiaAlive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role) && p.status === 'alive' && !state.delayed_departure.includes(p.name));
+                                if (!mafiaAlive) isRoleHolderDead = true;
+                            } else if (role !== 'Grave Keeper') {
+                                const playerWithRole = state.players.find(p => p.role === role);
+                                if (!playerWithRole || playerWithRole.status !== 'alive' || state.delayed_departure.includes(playerWithRole.name)) {
+                                    isRoleHolderDead = true;
+                                }
+                            }
+
                             const recordedTargetId = state.night_actions[role] || null;
                             const recordedTargetPlayer = state.players.find(p => p.id === recordedTargetId);
-                            const recordedTarget = recordedTargetPlayer ? recordedTargetPlayer.name : null;
+                            const recordedTarget = recordedTargetPlayer ? recordedTargetPlayer.name : (recordedTargetId === 'none' ? __('none_no_selection') : (recordedTargetId || null));
 
                             let statusText = recordedTarget ? __('recorded') : __('pending');
                             let badgeClass = recordedTarget ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800';
@@ -1005,6 +1016,9 @@ document.addEventListener('click', function(e) {
                             if (role === 'Grave Keeper') {
                                 statusText = state.grave_keeper_acted_tonight ? __('decided') : __('host_prompt');
                                 badgeClass = state.grave_keeper_acted_tonight ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-indigo-950 text-indigo-400 border border-indigo-800';
+                            } else if (isRoleHolderDead) {
+                                statusText = __('inactive');
+                                badgeClass = 'bg-slate-800 text-slate-400 border border-slate-700';
                             }
 
                             let promptDesc = '';
@@ -1062,10 +1076,16 @@ document.addEventListener('click', function(e) {
                                         </button>
                                     `;
                                 }
+                            } else if (isRoleHolderDead) {
+                                html += `
+                                    <div class="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded border border-rose-900/60 text-center font-bold italic">
+                                        🚫 ${__('role_holder_eliminated')}
+                                    </div>
+                                `;
                             } else {
                                 html += `
                                     <select id="select-${role}" class="target-select w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded p-2 focus:outline-none focus:border-rose-500">
-                                        <option value="">${__('none_no_selection')}</option>
+                                        <option value="none" ${recordedTargetId === 'none' ? 'selected' : ''}>${__('none_no_selection')}</option>
                                 `;
 
                                 state.players.forEach(p => {
@@ -1080,12 +1100,14 @@ document.addEventListener('click', function(e) {
                                     if (role === 'Town Doctor' && p.role === 'Town Doctor' && (state.town_doctor_self_protect_count || 0) >= 2) return;
                                     if (role === 'Deceiver' && p.role === 'Mafia Boss') return;
 
-                                    const isSelected = (recordedTargetId === p.id) ? 'selected' : '';
+                                    const isSelected = (recordedTargetId === p.id || recordedTargetId === p.name) ? 'selected' : '';
                                     html += `<option value="${p.id}" ${isSelected}>${p.name}</option>`;
                                 });
 
                                 let selectedLabel = recordedTarget ? `${__('selected')} ${recordedTarget}` : '';
-                                if (recordedTarget && role === 'Investigator') {
+                                if (recordedTargetId === 'none') {
+                                    selectedLabel = `${__('selected')} ${__('none_no_selection')}`;
+                                } else if (recordedTarget && role === 'Investigator') {
                                     const p = state.players.find(pl => String(pl.id) === String(recordedTargetId) || pl.name === recordedTarget);
                                     if (p) {
                                         const targetRole = p.role || 'Citizen';
@@ -1908,7 +1930,8 @@ document.addEventListener('click', function(e) {
                     if (selectedText && targetName) {
                         const role = card.getAttribute('data-role-card');
                         if (role !== 'Investigator') {
-                            selectedText.innerText = (i18nTxt.selectedPrefix || 'Selected: ') + " " + targetName.trim();
+                            const label = (targetName === 'none' || targetName === i18nTxt.noneNoSelection) ? (i18nTxt.noneNoSelection || '-- None / No Selection --') : targetName.trim();
+                            selectedText.innerText = (i18nTxt.selectedPrefix || 'Selected: ') + " " + label;
                         }
                     }
                 }
@@ -2252,7 +2275,10 @@ document.addEventListener('click', function(e) {
                             }
                             if (cancelBtn) cancelBtn.classList.add('hidden');
                             if (resultContainer) resultContainer.classList.remove('hidden');
-                            if (selectedText) selectedText.innerText = i18nTxt.selectedPrefix + " " + recordedTarget;
+                            if (selectedText) {
+                                const label = (recordedTarget === 'none' || recordedTarget === i18nTxt.noneNoSelection) ? (i18nTxt.noneNoSelection || '-- None / No Selection --') : recordedTarget;
+                                selectedText.innerText = (i18nTxt.selectedPrefix || 'Selected: ') + " " + label;
+                            }
 
                             if (role === 'Investigator' && selectElem) {
                                 const p = data.players.find(pl => pl.name === recordedTarget);
