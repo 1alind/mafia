@@ -559,75 +559,78 @@ hr {
                             }
                         }
 
-                        // Check if Gravedigger is alive and has remaining charges
-                        $call_grave_keeper_tonight = ($has_grave_keeper && !$is_gk_dead && $gk_charges > 0);
+                        if (!function_exists('get_role_status')) {
+                            function get_role_status($role, $db, $gk_revealed) {
+                                if ($role === 'Grave Keeper') {
+                                    $has_gk = false;
+                                    $is_gk_dead = false;
+                                    foreach ($db['players'] as $p) {
+                                        if (($p['role'] ?? '') === 'Grave Keeper') {
+                                            $has_gk = true;
+                                            if (($p['status'] ?? '') === 'dead' || in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                                                $is_gk_dead = true;
+                                            }
+                                        }
+                                    }
+                                    $gk_charges = $db['grave_keeper_charges'] ?? 2;
+                                    if (!$has_gk || $is_gk_dead || $gk_charges <= 0) return 'hidden';
+                                    return 'active';
+                                }
+
+                                $revealed_hidden = $db['revealed_hidden_roles'] ?? [];
+                                $is_role_revealed_hidden = in_array($role, $revealed_hidden) || $gk_revealed;
+
+                                if ($role === 'Mafia') {
+                                    $mafia_active = false;
+                                    $mafia_alive = false;
+                                    foreach ($db['players'] as $p) {
+                                        if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'])) {
+                                            $mafia_active = true;
+                                            if (($p['status'] ?? '') === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                                                $mafia_alive = true;
+                                            }
+                                        }
+                                    }
+                                    if (!$mafia_active) return 'hidden';
+                                    if ($mafia_alive) return 'active';
+                                    return $is_role_revealed_hidden ? 'hidden' : 'dead';
+                                }
+
+                                $role_holders = array_filter($db['players'], function($pl) use ($role) {
+                                    return ($pl['role'] ?? '') === $role;
+                                });
+                                if (empty($role_holders)) return 'hidden';
+
+                                $is_alive = false;
+                                foreach ($role_holders as $pl) {
+                                    if (($pl['status'] ?? '') === 'alive' && !in_array($pl['name'], $db['delayed_departure'] ?? [])) {
+                                        $is_alive = true;
+                                        break;
+                                    }
+                                }
+                                if ($is_alive) return 'active';
+
+                                return $is_role_revealed_hidden ? 'hidden' : 'dead';
+                            }
+                        }
+
+                        if (!function_exists('should_call_role')) {
+                            function should_call_role($role, $db, $gk_revealed) {
+                                $status = get_role_status($role, $db, $gk_revealed);
+                                if ($status === 'active') return true;  // call during night
+                                if ($status === 'dead') return true;    // call during night (action disabled)
+                                if ($status === 'hidden') return false; // don't call during night
+                                return false;
+                            }
+                        }
 
                         foreach ($all_game_roles as $role): 
                             if (in_array($role, ['Judge', 'Citizen', 'Mirhas', 'Regular Mafia'])) continue;
                             
-                            if ($role === 'Grave Keeper') {
-                                if (!$call_grave_keeper_tonight) continue; 
-                            } elseif ($role === 'Mafia') {
-                                // Find if there is any active/alive Mafia
-                                $mafia_active = false;
-                                $mafia_alive = false;
-                                foreach ($db['players'] as $p) {
-                                    if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'])) {
-                                        $mafia_active = true;
-                                        if ($p['status'] === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
-                                            $mafia_alive = true;
-                                        }
-                                    }
-                                }
-                                if (!$mafia_active) continue; 
-                                if ($gk_revealed && !$mafia_alive) continue;
-                            } else {
-                                $role_holders = array_filter($db['players'], function($pl) use ($role) {
-                                    return ($pl['role'] ?? '') === $role;
-                                });
-                                if (empty($role_holders)) continue; 
+                            if (!should_call_role($role, $db, $gk_revealed)) continue;
 
-                                if ($gk_revealed) {
-                                    $all_dead_or_out = true;
-                                    foreach ($role_holders as $pl) {
-                                        if (($pl['status'] ?? '') === 'alive' && !in_array($pl['name'], $db['delayed_departure'] ?? [])) {
-                                            $all_dead_or_out = false;
-                                            break;
-                                        }
-                                    }
-                                    if ($all_dead_or_out) continue; 
-                                }
-                            }
-
-                            $is_role_holder_dead = false;
-                            if ($role === 'Mafia') {
-                                $mafia_active_alive = false;
-                                foreach ($db['players'] as $p) {
-                                    if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'])) {
-                                        if ($p['status'] === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
-                                            $mafia_active_alive = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (!$mafia_active_alive) $is_role_holder_dead = true;
-                            } elseif ($role !== 'Grave Keeper') {
-                                $role_holders = array_filter($db['players'], function($pl) use ($role) {
-                                    return ($pl['role'] ?? '') === $role;
-                                });
-                                if (empty($role_holders)) {
-                                    $is_role_holder_dead = true;
-                                } else {
-                                    $all_dead = true;
-                                    foreach ($role_holders as $pl) {
-                                        if (($pl['status'] ?? '') === 'alive' && !in_array($pl['name'], $db['delayed_departure'] ?? [])) {
-                                            $all_dead = false;
-                                            break;
-                                        }
-                                    }
-                                    $is_role_holder_dead = $all_dead;
-                                }
-                            }
+                            $role_status = get_role_status($role, $db, $gk_revealed);
+                            $is_role_holder_dead = ($role_status === 'dead');
                         ?>
                             <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-4" data-role-card="<?php echo $role; ?>" data-role-dead="<?php echo $is_role_holder_dead ? 'true' : 'false'; ?>">
                                 <div>

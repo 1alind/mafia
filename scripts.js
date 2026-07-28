@@ -341,6 +341,7 @@ document.addEventListener('click', function(e) {
                         grave_keeper_revealed_roles: false,
                         grave_keeper_reveal_pending: false,
                         grave_keeper_acted_tonight: false,
+                        revealed_hidden_roles: [],
                         gravedigger_charges: 2,
                         gravedigger_reveal_pending: false,
                         town_doctor_self_protect_count: 0,
@@ -666,11 +667,21 @@ document.addEventListener('click', function(e) {
 
                         let revealed_roles = {};
                         if (state.grave_keeper_reveal_pending || state.grave_keeper_revealed_roles) {
+                            if (!Array.isArray(state.revealed_hidden_roles)) {
+                                state.revealed_hidden_roles = [];
+                            }
                             state.players.forEach(p => {
                                 if (p.status === 'dead' || final_killed.includes(p.name)) {
                                     revealed_roles[p.name] = p.role || 'Citizen';
+                                    if (p.role && !state.revealed_hidden_roles.includes(p.role)) {
+                                        state.revealed_hidden_roles.push(p.role);
+                                    }
                                 }
                             });
+                            const mafiaAlive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role) && p.status === 'alive' && !final_killed.includes(p.name));
+                            if (!mafiaAlive && !state.revealed_hidden_roles.includes('Mafia')) {
+                                state.revealed_hidden_roles.push('Mafia');
+                            }
                             state.grave_keeper_revealed_roles = true;
                             state.grave_keeper_reveal_pending = false;
                             state.gravedigger_reveal_pending = false;
@@ -961,37 +972,40 @@ document.addEventListener('click', function(e) {
                             } catch (e) {}
                         }
 
-                        function getRoleGraveStatus(role, state, gkRevealed) {
+                        function getRoleStatus(role, state, gkRevealed) {
                             if (role === 'Grave Keeper') {
                                 const assignedGk = state.players.some(p => p.role === 'Grave Keeper');
-                                const isGkDead = state.players.some(p => p.role === 'Grave Keeper' && (p.status === 'dead' || state.delayed_departure.includes(p.name)));
+                                const isGkDead = state.players.some(p => p.role === 'Grave Keeper' && (p.status === 'dead' || (state.delayed_departure || []).includes(p.name)));
                                 const gkCharges = state.grave_keeper_charges !== undefined ? state.grave_keeper_charges : 2;
-                                if (!assignedGk || isGkDead || gkCharges <= 0) return 'revealed';
+                                if (!assignedGk || isGkDead || gkCharges <= 0) return 'hidden';
                                 return 'active';
                             }
 
+                            const revealedHidden = state.revealed_hidden_roles || [];
+                            const isRoleRevealedHidden = revealedHidden.includes(role) || gkRevealed;
+
                             if (role === 'Mafia') {
                                 const mafiaActive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role));
-                                if (!mafiaActive) return 'revealed';
-                                const mafiaAlive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role) && p.status === 'alive' && !state.delayed_departure.includes(p.name));
+                                if (!mafiaActive) return 'hidden';
+                                const mafiaAlive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role) && p.status === 'alive' && !(state.delayed_departure || []).includes(p.name));
                                 if (mafiaAlive) return 'active';
-                                return gkRevealed ? 'revealed' : 'hidden';
+                                return isRoleRevealedHidden ? 'hidden' : 'dead';
                             }
 
                             const roleHolders = state.players.filter(p => p.role === role);
-                            if (roleHolders.length === 0) return 'revealed';
+                            if (roleHolders.length === 0) return 'hidden';
 
-                            const isAlive = roleHolders.some(p => p.status === 'alive' && !state.delayed_departure.includes(p.name));
+                            const isAlive = roleHolders.some(p => p.status === 'alive' && !(state.delayed_departure || []).includes(p.name));
                             if (isAlive) return 'active';
 
-                            return gkRevealed ? 'revealed' : 'hidden';
+                            return isRoleRevealedHidden ? 'hidden' : 'dead';
                         }
 
                         function shouldCallRole(role, state, gkRevealed) {
-                            const graveStatus = getRoleGraveStatus(role, state, gkRevealed);
-                            if (graveStatus === 'active') return true;   // call normally
-                            if (graveStatus === 'hidden') return true;   // still call, but disable action
-                            if (graveStatus === 'revealed') return false; // stop calling forever
+                            const status = getRoleStatus(role, state, gkRevealed);
+                            if (status === 'active') return true;  // call during night
+                            if (status === 'dead') return true;    // call during night (action disabled)
+                            if (status === 'hidden') return false; // don't call during night
                             return false;
                         }
 
@@ -1027,8 +1041,8 @@ document.addEventListener('click', function(e) {
                         nightRoles.forEach(role => {
                             if (!shouldCallRole(role, state, gkRevealed)) return;
 
-                            const graveStatus = getRoleGraveStatus(role, state, gkRevealed);
-                            const isRoleHolderDead = (graveStatus === 'hidden');
+                            const status = getRoleStatus(role, state, gkRevealed);
+                            const isRoleHolderDead = (status === 'dead');
 
                             const recordedTargetId = state.night_actions[role] || null;
                             const recordedTargetPlayer = state.players.find(p => p.id === recordedTargetId);
@@ -2146,6 +2160,19 @@ document.addEventListener('click', function(e) {
                     saveLocalNightAction(role, targetId, form);
 
                     if (targetId === 'yes') {
+                        let state = getGameState();
+                        if (state) {
+                            state.grave_keeper_revealed_roles = true;
+                            if (!Array.isArray(state.revealed_hidden_roles)) state.revealed_hidden_roles = [];
+                            state.players.forEach(p => {
+                                if (p.status === 'dead' || (state.delayed_departure || []).includes(p.name)) {
+                                    if (p.role && !state.revealed_hidden_roles.includes(p.role)) {
+                                        state.revealed_hidden_roles.push(p.role);
+                                    }
+                                }
+                            });
+                            saveGameState(state);
+                        }
                         try {
                             localStorage.setItem('grave_keeper_revealed_roles', 'true');
                             localStorage.setItem('mafia_gk_revealed', 'true');

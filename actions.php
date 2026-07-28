@@ -6,6 +6,33 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/lang/loader.php';
 
+if (!function_exists('add_dead_roles_to_revealed_hidden')) {
+    function add_dead_roles_to_revealed_hidden(&$db) {
+        if (!isset($db['revealed_hidden_roles']) || !is_array($db['revealed_hidden_roles'])) {
+            $db['revealed_hidden_roles'] = [];
+        }
+        foreach ($db['players'] as $p) {
+            if (($p['status'] ?? '') === 'dead' || in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                if (!empty($p['role']) && !in_array($p['role'], $db['revealed_hidden_roles'])) {
+                    $db['revealed_hidden_roles'][] = $p['role'];
+                }
+            }
+        }
+        $mafia_alive = false;
+        foreach ($db['players'] as $p) {
+            if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'])) {
+                if (($p['status'] ?? '') === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                    $mafia_alive = true;
+                    break;
+                }
+            }
+        }
+        if (!$mafia_alive && !in_array('Mafia', $db['revealed_hidden_roles'])) {
+            $db['revealed_hidden_roles'][] = 'Mafia';
+        }
+    }
+}
+
 function get_db() {
     $db = load_db();
     if (!$db || !is_array($db)) {
@@ -24,6 +51,7 @@ function get_db() {
             'grave_keeper_revealed_roles' => false,
             'grave_keeper_reveal_pending' => false,
             'grave_keeper_acted_tonight' => false,
+            'revealed_hidden_roles' => [],
             'gravedigger_charges' => 2,
             'gravedigger_reveal_pending' => false,
             'town_doctor_self_protect_count' => 0,
@@ -256,6 +284,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $db['grave_keeper_revealed_roles'] = false;
             $db['grave_keeper_reveal_pending'] = false;
             $db['grave_keeper_acted_tonight'] = false;
+            $db['revealed_hidden_roles'] = [];
             $db['gravedigger_charges'] = 2;
             $db['gravedigger_reveal_pending'] = false;
             $db['town_doctor_self_protect_count'] = 0;
@@ -382,6 +411,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         $db['grave_keeper_charges'] = ($db['grave_keeper_charges'] ?? 2) - 1;
                         $db['gravedigger_charges'] = $db['grave_keeper_charges'];
                     }
+                    add_dead_roles_to_revealed_hidden($db);
                 } else {
                     $db['grave_keeper_reveal_pending'] = false;
                     $db['grave_keeper_revealed_roles'] = false;
@@ -458,6 +488,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             $db['grave_keeper_charges'] = ($db['grave_keeper_charges'] ?? 2) - 1;
                             $db['gravedigger_charges'] = $db['grave_keeper_charges'];
                         }
+                        add_dead_roles_to_revealed_hidden($db);
                     } else {
                         $db['grave_keeper_reveal_pending'] = false;
                         $db['grave_keeper_revealed_roles'] = false;
@@ -529,6 +560,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $db['grave_keeper_charges'] = ($db['grave_keeper_charges'] ?? 2) - 1;
                     $db['gravedigger_charges'] = $db['grave_keeper_charges'];
                 }
+                add_dead_roles_to_revealed_hidden($db);
             } else {
                 $db['grave_keeper_reveal_pending'] = false;
             }
@@ -915,6 +947,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 $revealed_roles = [];
                 if (($db['grave_keeper_reveal_pending'] ?? false) || ($db['grave_keeper_revealed_roles'] ?? false)) {
+                    add_dead_roles_to_revealed_hidden($db);
                     foreach ($db['players'] as $p) {
                         if (($p['status'] ?? '') === 'dead' || in_array($p['name'], $final_killed)) {
                             $revealed_roles[$p['name']] = $p['role'] ?? 'Citizen';
