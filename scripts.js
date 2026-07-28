@@ -946,13 +946,47 @@ document.addEventListener('click', function(e) {
                         const gkCharges = state.grave_keeper_charges !== undefined ? state.grave_keeper_charges : 2;
                         const localStorageGkReveal = (localStorage.getItem('grave_keeper_revealed_roles') === 'true') || (localStorage.getItem('mafia_gk_revealed') === 'true');
                         const domGkReveal = (document.getElementById('hidden_gk_revealed')?.value === 'true') || (document.getElementById('gk_revealed_data_store')?.dataset?.revealed === 'true');
-                        const gkRevealed = !!(state.grave_keeper_revealed_roles || state.roles_shared || localStorageGkReveal || domGkReveal);
+                        const gkRevealed = !!(state.grave_keeper_revealed_roles || localStorageGkReveal || domGkReveal);
 
                         if (gkRevealed) {
                             try {
                                 localStorage.setItem('grave_keeper_revealed_roles', 'true');
                                 localStorage.setItem('mafia_gk_revealed', 'true');
                             } catch (e) {}
+                        }
+
+                        function getRoleGraveStatus(role, state, gkRevealed) {
+                            if (role === 'Grave Keeper') {
+                                const assignedGk = state.players.some(p => p.role === 'Grave Keeper');
+                                const isGkDead = state.players.some(p => p.role === 'Grave Keeper' && (p.status === 'dead' || state.delayed_departure.includes(p.name)));
+                                const gkCharges = state.grave_keeper_charges !== undefined ? state.grave_keeper_charges : 2;
+                                if (!assignedGk || isGkDead || gkCharges <= 0) return 'revealed';
+                                return 'active';
+                            }
+
+                            if (role === 'Mafia') {
+                                const mafiaActive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role));
+                                if (!mafiaActive) return 'revealed';
+                                const mafiaAlive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role) && p.status === 'alive' && !state.delayed_departure.includes(p.name));
+                                if (mafiaAlive) return 'active';
+                                return gkRevealed ? 'revealed' : 'hidden';
+                            }
+
+                            const roleHolders = state.players.filter(p => p.role === role);
+                            if (roleHolders.length === 0) return 'revealed';
+
+                            const isAlive = roleHolders.some(p => p.status === 'alive' && !state.delayed_departure.includes(p.name));
+                            if (isAlive) return 'active';
+
+                            return gkRevealed ? 'revealed' : 'hidden';
+                        }
+
+                        function shouldCallRole(role, state, gkRevealed) {
+                            const graveStatus = getRoleGraveStatus(role, state, gkRevealed);
+                            if (graveStatus === 'active') return true;   // call normally
+                            if (graveStatus === 'hidden') return true;   // still call, but disable action
+                            if (graveStatus === 'revealed') return false; // stop calling forever
+                            return false;
                         }
 
                         html += `
@@ -982,39 +1016,13 @@ document.addEventListener('click', function(e) {
                             }
                         });
 
-                        const isGkDead = state.players.some(p => p.role === 'Grave Keeper' && (p.status === 'dead' || state.delayed_departure.includes(p.name)));
-                        const callGk = (assignedRoles['Grave Keeper'] && !isGkDead && gkCharges > 0);
-
                         const nightRoles = ['Grave Keeper', 'Mafia', 'Deceiver', 'Mafia Doctor', 'Police', 'Town Doctor', 'Investigator', 'Suicidal Bomb'];
 
                         nightRoles.forEach(role => {
-                            if (role === 'Grave Keeper') {
-                                if (!callGk) return;
-                            } else if (role === 'Mafia') {
-                                const mafiaActive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role));
-                                if (!mafiaActive) return;
-                                if (gkRevealed) {
-                                    const mafiaAlive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role) && p.status === 'alive' && !state.delayed_departure.includes(p.name));
-                                    if (!mafiaAlive) return;
-                                }
-                            } else {
-                                const roleHolders = state.players.filter(p => p.role === role);
-                                if (roleHolders.length === 0) return;
-                                if (gkRevealed) {
-                                    const allDeadOrOut = roleHolders.every(p => p.status === 'dead' || state.delayed_departure.includes(p.name));
-                                    if (allDeadOrOut) return;
-                                }
-                            }
+                            if (!shouldCallRole(role, state, gkRevealed)) return;
 
-                            let isRoleHolderDead = false;
-                            if (role === 'Mafia') {
-                                const mafiaAlive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role) && p.status === 'alive' && !state.delayed_departure.includes(p.name));
-                                if (!mafiaAlive) isRoleHolderDead = true;
-                            } else if (role !== 'Grave Keeper') {
-                                const roleHolders = state.players.filter(p => p.role === role);
-                                const allDead = roleHolders.length === 0 || roleHolders.every(p => p.status === 'dead' || state.delayed_departure.includes(p.name));
-                                if (allDead) isRoleHolderDead = true;
-                            }
+                            const graveStatus = getRoleGraveStatus(role, state, gkRevealed);
+                            const isRoleHolderDead = (graveStatus === 'hidden');
 
                             const recordedTargetId = state.night_actions[role] || null;
                             const recordedTargetPlayer = state.players.find(p => p.id === recordedTargetId);

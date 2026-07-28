@@ -227,7 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 $db['roles_shared'] = true;
-                $db['grave_keeper_revealed_roles'] = true;
+                $db['grave_keeper_revealed_roles'] = false;
                 $db['phase'] = 'night';
                 $db['day'] = 1;
                 $db['night_actions'] = [];

@@ -522,7 +522,7 @@ hr {
 
                     <p class="text-xs text-amber-300 bg-amber-950/40 border border-amber-900/60 p-3 rounded-lg">
                         ⚠️ <strong><?php echo __('host_calling_rule'); ?></strong> 
-                        <?php if (($db['grave_keeper_revealed_roles'] ?? false) || ($db['roles_shared'] ?? false)): ?>
+                        <?php if ($db['grave_keeper_revealed_roles'] ?? false): ?>
                             <?php echo __('gk_skip_calling_rule'); ?>
                         <?php else: ?>
                             <?php echo __('gk_call_all_rule'); ?>
@@ -530,7 +530,7 @@ hr {
                     </p>
 
                     <?php 
-                    $gk_revealed = ($db['grave_keeper_revealed_roles'] ?? false) || ($db['roles_shared'] ?? false);
+                    $gk_revealed = $db['grave_keeper_revealed_roles'] ?? false;
                     ?>
                     <input type="hidden" id="hidden_gk_revealed" value="<?php echo $gk_revealed ? 'true' : 'false'; ?>">
                     <div id="gk_revealed_data_store" data-revealed="<?php echo $gk_revealed ? 'true' : 'false'; ?>" class="hidden"></div>
@@ -823,8 +823,7 @@ hr {
                     (function() {
                         try {
                             const isRevealed = (localStorage.getItem('grave_keeper_revealed_roles') === 'true') ||
-                                               (localStorage.getItem('mafia_gk_revealed') === 'true') ||
-                                               (window.isRolesShared === true);
+                                               (localStorage.getItem('mafia_gk_revealed') === 'true');
                             if (isRevealed) {
                                 document.querySelectorAll('[data-role-card]').forEach(function(card) {
                                     if (card.getAttribute('data-role-dead') === 'true') {
