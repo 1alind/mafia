@@ -1796,24 +1796,15 @@ document.addEventListener('click', function(e) {
                     updateMuteUI();
                     checkAndRecoverTimer();
 
-                    // Phase Change Sound Alerts
-                    const currentPhase = window.dbPhase;
-                    const savedPhase = sessionStorage.getItem('mafia_last_phase');
-                    if (savedPhase && savedPhase !== currentPhase) {
-                        if (currentPhase === 'day') {
-                            playSound('daybreak');
-                        } else if (currentPhase === 'night') {
-                            playSound('nightfall');
-                        }
+                    if (window.isRolesShared) {
+                        renderHostUI();
                     }
-                    sessionStorage.setItem('mafia_last_phase', currentPhase);
-                });
-                let lastPhaseState = window.dbPhase;
-                let lastWinnerState = window.dbWinner;
-                let lastGraveRevealState = window.dbGraveReveal;
-                let lastGraveChargesState = window.dbGraveCharges;
 
-                let lastNightActionsState = window.dbNightActions;
+                    setInterval(pollHost, 3000);
+                });
+
+                let lastRolesSharedState = window.isRolesShared;
+                let lastResetTokenState = window.serverResetToken;
 
                 function getPhaseLabel(phase, day, winner) {
                     if (winner) return i18nTxt.gameOver;
@@ -1825,99 +1816,20 @@ document.addEventListener('click', function(e) {
                     fetch('actions.php?ajax=1')
                         .then(r => r.json())
                         .then(data => {
-                            if (data.roles_shared !== lastRolesSharedState || data.phase !== lastPhaseState || data.winner !== lastWinnerState || data.grave_keeper_revealed_roles !== lastGraveRevealState || data.grave_keeper_charges !== lastGraveChargesState) {
-                                lastRolesSharedState = data.roles_shared;
-                                lastPhaseState = data.phase;
-                                lastWinnerState = data.winner;
-                                lastGraveRevealState = data.grave_keeper_revealed_roles;
-                                lastGraveChargesState = data.grave_keeper_charges;
-
+                            if (data.roles_shared !== lastRolesSharedState || (data.reset_token && data.reset_token !== lastResetTokenState)) {
+                                if (!data.roles_shared) {
+                                    localStorage.removeItem('mafia_game_state');
+                                }
                                 window.location.reload();
                                 return;
                             }
 
-                            if (JSON.stringify(data.night_actions) !== JSON.stringify(lastNightActionsState)) {
-                                lastNightActionsState = data.night_actions;
-                                if (typeof refreshNightCardUI === 'function') {
-                                    const allRoles = ['Mafia', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Mirhas', 'Suicidal Bomb', 'Citizen'];
-                                    allRoles.forEach(r => refreshNightCardUI(r, data));
-                                }
+                            const onlineCountEl = document.getElementById('online-count');
+                            if (onlineCountEl && data.players) {
+                                onlineCountEl.innerText = data.players.length;
                             }
-
-                            document.getElementById('online-count').innerText = data.players.length;
-                            document.getElementById('phase-label').innerText = getPhaseLabel(data.phase, data.day, data.winner);
-
-                            const tbody = document.getElementById('players-table-body');
-                            if (data.players.length === 0) {
-                                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">${i18nTxt.noPlayers}</td></tr>`;
-                            } else {
-                                let html = '';
-                                data.players.forEach(p => {
-                                    let isDelayed = (data.delayed_departure || []).includes(p.name);
-                                    let statusText = isDelayed ? i18nTxt.aliveTemp : (p.status === 'alive' ? i18nTxt.alive : i18nTxt.dead);
-                                    let statusClass = (p.status === 'alive' || isDelayed) ? 'text-emerald-400' : 'text-rose-500 line-through';
-
-                                    let kickButton = '';
-                                    if (data.phase === 'day' && p.status === 'alive' && !isDelayed && !data.winner) {
-                                        kickButton = `
-                                            <form method="POST" class="inline">
-                                                <input type="hidden" name="action" value="kick_player_day">
-                                                <input type="hidden" name="player_id" value="${p.id}">
-                                                <button type="submit" class="text-xs text-amber-300 hover:text-white bg-amber-950/60 px-2.5 py-1 rounded border border-amber-800">
-                                                    ${i18nTxt.voteKick}
-                                                </button>
-                                            </form>
-                                        `;
-                                    }
-
-                                    let setupRemoveButton = "";
-                                    if (!data.roles_shared) {
-                                        let removeLabel = window.currentLang === 'ku' ? 'ژێبرن' : (window.currentLang === 'ar' ? 'حذف' : 'Remove');
-                                        setupRemoveButton = `
-                                            <form method="POST" class="inline">
-                                                <input type="hidden" name="action" value="remove_player_setup">
-                                                <input type="hidden" name="player_id" value="${p.id}">
-                                                <button type="submit" class="text-xs text-rose-400 hover:text-white bg-rose-950/60 px-2.5 py-1 rounded border border-rose-900/60 transition">
-                                                    ${removeLabel}
-                                                </button>
-                                            </form>
-                                        `;
-                                    }
-                                    let roleTranslated = i18nRoles[p.role] || p.role;
-
-                                    html += `
-                                        <tr class="hover:bg-slate-800/50">
-                                            <td class="p-3 font-semibold">${p.name}</td>
-                                            <td class="p-3"><span class="px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-sky-300 border border-slate-700">${roleTranslated}</span></td>
-                                            <td class="p-3"><span class="text-xs font-bold ${statusClass}">${statusText}</span></td>
-                                            <td class="p-3 text-right rtl:text-left space-x-2 flex flex-wrap justify-end gap-1">
-                                                ${kickButton}
-                                                ${setupRemoveButton}
-                                                ${data.roles_shared ? `
-                                                <form method="POST" class="inline">
-                                                    <input type="hidden" name="action" value="toggle_status">
-                                                    <input type="hidden" name="player_id" value="${p.id}">
-                                                    <button type="submit" class="text-xs text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
-                                                        ${i18nTxt.toggle}
-                                                    </button>
-                                                </form>
-                                                ` : ""}
-                                            </td>
-                                        </tr>
-                                    `;
-                                });
-                                tbody.innerHTML = html;
-                            }
-
-                            const logsContainer = document.getElementById('logs-container');
-                            if (logsContainer) {
-                                let logsHtml = '';
-                                [...data.logs].reverse().forEach(log => {
-                                    logsHtml += `<div class="border-b border-slate-900 pb-1">${log}</div>`;
-                                });
-                                logsContainer.innerHTML = logsHtml;
-                            }
-                        });
+                        })
+                        .catch(err => console.error("Poll error:", err));
                 }
 
                 // Background polling removed per user request

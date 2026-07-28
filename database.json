@@ -1,21 +1,7 @@
 {
-    "reset_token": "rst_6a667cfa3704d4.47045345",
+    "reset_token": "rst_initial",
     "host_browser_id": null,
     "host_password": "1234",
-    "phase": "setup",
-    "day": 1,
-    "players": [],
     "roles_shared": false,
-    "winner": null,
-    "night_actions": [],
-    "logs": [
-        "Game session created."
-    ],
-    "grave_keeper_charges": 2,
-    "grave_keeper_revealed_roles": false,
-    "grave_keeper_acted_tonight": false,
-    "town_doctor_self_protect_count": 0,
-    "last_night_report": null,
-    "investigation_results": [],
-    "delayed_departure": []
+    "players": []
 }
