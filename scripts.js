@@ -1084,18 +1084,51 @@ document.addEventListener('click', function(e) {
                                     html += `<option value="${p.id}" ${isSelected}>${p.name}</option>`;
                                 });
 
+                                let selectedLabel = recordedTarget ? `${__('selected')} ${recordedTarget}` : '';
+                                if (recordedTarget && role === 'Investigator') {
+                                    const p = state.players.find(pl => String(pl.id) === String(recordedTargetId) || pl.name === recordedTarget);
+                                    if (p) {
+                                        const targetRole = p.role || 'Citizen';
+                                        let evalRes = 'Citizen';
+                                        if (targetRole === 'Mafia Boss') {
+                                            evalRes = 'Citizen';
+                                        } else {
+                                            const deceiverAlive = state.players.some(pl => pl.role === 'Deceiver' && pl.status === 'alive');
+                                            const deceiverTarget = state.night_actions ? state.night_actions['Deceiver'] : null;
+                                            let isDeceived = false;
+                                            if (deceiverAlive && deceiverTarget) {
+                                                const pDeceiver = state.players.find(pl => String(pl.id) === String(deceiverTarget) || pl.name === deceiverTarget);
+                                                if (pDeceiver && pDeceiver.id === p.id) {
+                                                    isDeceived = true;
+                                                }
+                                            }
+                                            const isMafia = ['Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(targetRole);
+                                            if (isDeceived) {
+                                                evalRes = isMafia ? 'Citizen' : 'Regular Mafia';
+                                            } else {
+                                                evalRes = isMafia ? 'Regular Mafia' : 'Citizen';
+                                            }
+                                        }
+                                        const isMafiaAligned = ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(evalRes);
+                                        const displayLabel = isMafiaAligned ? (i18nRoles['Mafia'] || 'Mafia') : (i18nRoles['Citizen'] || 'Citizen');
+                                        selectedLabel = `${__('selected')} ${recordedTarget}: ${displayLabel}`;
+                                    }
+                                }
+
                                 html += `
                                     </select>
-                                    <div class="flex gap-2">
+                                    <div class="flex gap-2 buttons-container ${recordedTarget ? 'hidden' : ''}">
                                         <button type="button" onclick="confirmNightAction('${role}')" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 rounded uppercase tracking-wider transition shadow">
                                             ${__('confirm')}
                                         </button>
-                                        <button type="button" onclick="cancelNightAction('${role}')" class="cancel-btn bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold text-xs px-3 py-2 rounded uppercase tracking-wider transition ${recordedTarget ? '' : 'hidden'}">
+                                        <button type="button" onclick="cancelNightAction('${role}')" class="cancel-btn bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold text-xs px-3 py-2 rounded uppercase tracking-wider transition hidden" title="${__('cancel')}">
                                             ${__('cancel')}
                                         </button>
                                     </div>
-                                    <div class="target-display text-xs text-emerald-400 mt-2 font-bold text-center italic">
-                                        ${recordedTarget ? `${__('selected')} ${recordedTarget}` : ''}
+                                    <div class="result-container space-y-1 ${recordedTarget ? '' : 'hidden'}">
+                                        <div class="selected-text text-xs text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded border border-emerald-900 text-center truncate">
+                                            ${selectedLabel}
+                                        </div>
                                     </div>
                                 `;
                             }
@@ -2126,24 +2159,18 @@ document.addEventListener('click', function(e) {
                     handler(card, targetSelect, role, form);
                 }
 
-                // Immediately trigger result evaluation when selecting a target in dropdown
+                // Show confirm button when changing target selection in dropdown
                 document.addEventListener('change', function(e) {
                     if (e.target && e.target.classList.contains('target-select')) {
                         const card = e.target.closest('[data-role-card]');
                         if (card) {
-                            const role = card.getAttribute('data-role-card');
-                            
                             // Show confirm button container when target selection is changed
                             const buttonsContainer = card.querySelector('.buttons-container');
                             if (buttonsContainer) {
                                 buttonsContainer.classList.remove('hidden');
-                                // Ensure only the Confirm button is visible (Cancel button is hidden)
+                                // Ensure Cancel button remains hidden
                                 const cancelBtn = buttonsContainer.querySelector('.cancel-btn');
                                 if (cancelBtn) cancelBtn.classList.add('hidden');
-                            }
-                            
-                            if (role === 'Investigator') {
-                                handleInvestigatorNightAction(card, e.target, 'Investigator', e.target.form);
                             }
                         }
                     }

@@ -717,9 +717,7 @@ hr {
                                                 <?php echo __('cancel'); ?>
                                             </button>
                                         </div>
-                                        <div class="target-display text-xs text-emerald-400 mt-2 font-bold text-center italic">
-                                            <?php if ($recorded_target): ?>Target: <?php echo htmlspecialchars($recorded_target); ?><?php endif; ?>
-                                        </div>
+                                        <div class="target-display text-xs text-emerald-400 mt-2 font-bold text-center italic"></div>
                                     <?php endif; ?>
                                 </form>
 
