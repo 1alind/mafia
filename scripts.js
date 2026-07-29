@@ -341,7 +341,6 @@ document.addEventListener('click', function(e) {
                         grave_keeper_revealed_roles: false,
                         grave_keeper_reveal_pending: false,
                         grave_keeper_acted_tonight: false,
-                        revealed_hidden_roles: [],
                         gravedigger_charges: 2,
                         gravedigger_reveal_pending: false,
                         town_doctor_self_protect_count: 0,
@@ -667,21 +666,11 @@ document.addEventListener('click', function(e) {
 
                         let revealed_roles = {};
                         if (state.grave_keeper_reveal_pending || state.grave_keeper_revealed_roles) {
-                            if (!Array.isArray(state.revealed_hidden_roles)) {
-                                state.revealed_hidden_roles = [];
-                            }
                             state.players.forEach(p => {
                                 if (p.status === 'dead' || final_killed.includes(p.name)) {
                                     revealed_roles[p.name] = p.role || 'Citizen';
-                                    if (p.role && !state.revealed_hidden_roles.includes(p.role)) {
-                                        state.revealed_hidden_roles.push(p.role);
-                                    }
                                 }
                             });
-                            const mafiaAlive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role) && p.status === 'alive' && !final_killed.includes(p.name));
-                            if (!mafiaAlive && !state.revealed_hidden_roles.includes('Mafia')) {
-                                state.revealed_hidden_roles.push('Mafia');
-                            }
                             state.grave_keeper_revealed_roles = true;
                             state.grave_keeper_reveal_pending = false;
                             state.gravedigger_reveal_pending = false;
@@ -975,30 +964,27 @@ document.addEventListener('click', function(e) {
                         function getRoleStatus(role, state, gkRevealed) {
                             if (role === 'Grave Keeper') {
                                 const assignedGk = state.players.some(p => p.role === 'Grave Keeper');
-                                const isGkDead = state.players.some(p => p.role === 'Grave Keeper' && (p.status === 'dead' || (state.delayed_departure || []).includes(p.name)));
+                                const isGkDead = state.players.some(p => p.role === 'Grave Keeper' && (p.status === 'dead' || state.delayed_departure.includes(p.name)));
                                 const gkCharges = state.grave_keeper_charges !== undefined ? state.grave_keeper_charges : 2;
                                 if (!assignedGk || isGkDead || gkCharges <= 0) return 'hidden';
                                 return 'active';
                             }
 
-                            const revealedHidden = state.revealed_hidden_roles || [];
-                            const isRoleRevealedHidden = revealedHidden.includes(role) || gkRevealed;
-
                             if (role === 'Mafia') {
                                 const mafiaActive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role));
                                 if (!mafiaActive) return 'hidden';
-                                const mafiaAlive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role) && p.status === 'alive' && !(state.delayed_departure || []).includes(p.name));
+                                const mafiaAlive = state.players.some(p => ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'].includes(p.role) && p.status === 'alive' && !state.delayed_departure.includes(p.name));
                                 if (mafiaAlive) return 'active';
-                                return isRoleRevealedHidden ? 'hidden' : 'dead';
+                                return gkRevealed ? 'hidden' : 'dead';
                             }
 
                             const roleHolders = state.players.filter(p => p.role === role);
                             if (roleHolders.length === 0) return 'hidden';
 
-                            const isAlive = roleHolders.some(p => p.status === 'alive' && !(state.delayed_departure || []).includes(p.name));
+                            const isAlive = roleHolders.some(p => p.status === 'alive' && !state.delayed_departure.includes(p.name));
                             if (isAlive) return 'active';
 
-                            return isRoleRevealedHidden ? 'hidden' : 'dead';
+                            return gkRevealed ? 'hidden' : 'dead';
                         }
 
                         function shouldCallRole(role, state, gkRevealed) {
@@ -1796,15 +1782,24 @@ document.addEventListener('click', function(e) {
                     updateMuteUI();
                     checkAndRecoverTimer();
 
-                    if (window.isRolesShared) {
-                        renderHostUI();
+                    // Phase Change Sound Alerts
+                    const currentPhase = window.dbPhase;
+                    const savedPhase = sessionStorage.getItem('mafia_last_phase');
+                    if (savedPhase && savedPhase !== currentPhase) {
+                        if (currentPhase === 'day') {
+                            playSound('daybreak');
+                        } else if (currentPhase === 'night') {
+                            playSound('nightfall');
+                        }
                     }
-
-                    setInterval(pollHost, 3000);
+                    sessionStorage.setItem('mafia_last_phase', currentPhase);
                 });
+                let lastPhaseState = window.dbPhase;
+                let lastWinnerState = window.dbWinner;
+                let lastGraveRevealState = window.dbGraveReveal;
+                let lastGraveChargesState = window.dbGraveCharges;
 
-                let lastRolesSharedState = window.isRolesShared;
-                let lastResetTokenState = window.serverResetToken;
+                let lastNightActionsState = window.dbNightActions;
 
                 function getPhaseLabel(phase, day, winner) {
                     if (winner) return i18nTxt.gameOver;
@@ -1816,20 +1811,99 @@ document.addEventListener('click', function(e) {
                     fetch('actions.php?ajax=1')
                         .then(r => r.json())
                         .then(data => {
-                            if (data.roles_shared !== lastRolesSharedState || (data.reset_token && data.reset_token !== lastResetTokenState)) {
-                                if (!data.roles_shared) {
-                                    localStorage.removeItem('mafia_game_state');
-                                }
+                            if (data.roles_shared !== lastRolesSharedState || data.phase !== lastPhaseState || data.winner !== lastWinnerState || data.grave_keeper_revealed_roles !== lastGraveRevealState || data.grave_keeper_charges !== lastGraveChargesState) {
+                                lastRolesSharedState = data.roles_shared;
+                                lastPhaseState = data.phase;
+                                lastWinnerState = data.winner;
+                                lastGraveRevealState = data.grave_keeper_revealed_roles;
+                                lastGraveChargesState = data.grave_keeper_charges;
+
                                 window.location.reload();
                                 return;
                             }
 
-                            const onlineCountEl = document.getElementById('online-count');
-                            if (onlineCountEl && data.players) {
-                                onlineCountEl.innerText = data.players.length;
+                            if (JSON.stringify(data.night_actions) !== JSON.stringify(lastNightActionsState)) {
+                                lastNightActionsState = data.night_actions;
+                                if (typeof refreshNightCardUI === 'function') {
+                                    const allRoles = ['Mafia', 'Mafia Doctor', 'Deceiver', 'Regular Mafia', 'Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Mirhas', 'Suicidal Bomb', 'Citizen'];
+                                    allRoles.forEach(r => refreshNightCardUI(r, data));
+                                }
                             }
-                        })
-                        .catch(err => console.error("Poll error:", err));
+
+                            document.getElementById('online-count').innerText = data.players.length;
+                            document.getElementById('phase-label').innerText = getPhaseLabel(data.phase, data.day, data.winner);
+
+                            const tbody = document.getElementById('players-table-body');
+                            if (data.players.length === 0) {
+                                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500 text-xs">${i18nTxt.noPlayers}</td></tr>`;
+                            } else {
+                                let html = '';
+                                data.players.forEach(p => {
+                                    let isDelayed = (data.delayed_departure || []).includes(p.name);
+                                    let statusText = isDelayed ? i18nTxt.aliveTemp : (p.status === 'alive' ? i18nTxt.alive : i18nTxt.dead);
+                                    let statusClass = (p.status === 'alive' || isDelayed) ? 'text-emerald-400' : 'text-rose-500 line-through';
+
+                                    let kickButton = '';
+                                    if (data.phase === 'day' && p.status === 'alive' && !isDelayed && !data.winner) {
+                                        kickButton = `
+                                            <form method="POST" class="inline">
+                                                <input type="hidden" name="action" value="kick_player_day">
+                                                <input type="hidden" name="player_id" value="${p.id}">
+                                                <button type="submit" class="text-xs text-amber-300 hover:text-white bg-amber-950/60 px-2.5 py-1 rounded border border-amber-800">
+                                                    ${i18nTxt.voteKick}
+                                                </button>
+                                            </form>
+                                        `;
+                                    }
+
+                                    let setupRemoveButton = "";
+                                    if (!data.roles_shared) {
+                                        let removeLabel = window.currentLang === 'ku' ? 'ژێبرن' : (window.currentLang === 'ar' ? 'حذف' : 'Remove');
+                                        setupRemoveButton = `
+                                            <form method="POST" class="inline">
+                                                <input type="hidden" name="action" value="remove_player_setup">
+                                                <input type="hidden" name="player_id" value="${p.id}">
+                                                <button type="submit" class="text-xs text-rose-400 hover:text-white bg-rose-950/60 px-2.5 py-1 rounded border border-rose-900/60 transition">
+                                                    ${removeLabel}
+                                                </button>
+                                            </form>
+                                        `;
+                                    }
+                                    let roleTranslated = i18nRoles[p.role] || p.role;
+
+                                    html += `
+                                        <tr class="hover:bg-slate-800/50">
+                                            <td class="p-3 font-semibold">${p.name}</td>
+                                            <td class="p-3"><span class="px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-sky-300 border border-slate-700">${roleTranslated}</span></td>
+                                            <td class="p-3"><span class="text-xs font-bold ${statusClass}">${statusText}</span></td>
+                                            <td class="p-3 text-right rtl:text-left space-x-2 flex flex-wrap justify-end gap-1">
+                                                ${kickButton}
+                                                ${setupRemoveButton}
+                                                ${data.roles_shared ? `
+                                                <form method="POST" class="inline">
+                                                    <input type="hidden" name="action" value="toggle_status">
+                                                    <input type="hidden" name="player_id" value="${p.id}">
+                                                    <button type="submit" class="text-xs text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
+                                                        ${i18nTxt.toggle}
+                                                    </button>
+                                                </form>
+                                                ` : ""}
+                                            </td>
+                                        </tr>
+                                    `;
+                                });
+                                tbody.innerHTML = html;
+                            }
+
+                            const logsContainer = document.getElementById('logs-container');
+                            if (logsContainer) {
+                                let logsHtml = '';
+                                [...data.logs].reverse().forEach(log => {
+                                    logsHtml += `<div class="border-b border-slate-900 pb-1">${log}</div>`;
+                                });
+                                logsContainer.innerHTML = logsHtml;
+                            }
+                        });
                 }
 
                 // Background polling removed per user request
@@ -2072,19 +2146,6 @@ document.addEventListener('click', function(e) {
                     saveLocalNightAction(role, targetId, form);
 
                     if (targetId === 'yes') {
-                        let state = getGameState();
-                        if (state) {
-                            state.grave_keeper_revealed_roles = true;
-                            if (!Array.isArray(state.revealed_hidden_roles)) state.revealed_hidden_roles = [];
-                            state.players.forEach(p => {
-                                if (p.status === 'dead' || (state.delayed_departure || []).includes(p.name)) {
-                                    if (p.role && !state.revealed_hidden_roles.includes(p.role)) {
-                                        state.revealed_hidden_roles.push(p.role);
-                                    }
-                                }
-                            });
-                            saveGameState(state);
-                        }
                         try {
                             localStorage.setItem('grave_keeper_revealed_roles', 'true');
                             localStorage.setItem('mafia_gk_revealed', 'true');

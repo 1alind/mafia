@@ -1,5 +1,5 @@
 {
-  "name": "Mafia Game Web App",
+  "name": "Mafia Gamffe Web App",
   "description": "Interactive Mafia Game Web Application with Host Control Panel and Player Portal",
   "requestFramePermissions": ["autoplay"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
