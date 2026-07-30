@@ -2,15 +2,7 @@
 // Helper script for Mafia Game UI
 console.log("Mafia Game Client initialized");
 
-// Placeholder for WebSocket implementation
-try {
-    const socket = new WebSocket('ws://' + window.location.host + '/ws');
-    socket.onopen = () => console.log('WebSocket connected');
-    socket.onmessage = (event) => console.log('WebSocket message:', event.data);
-    socket.onclose = () => console.log('WebSocket disconnected');
-} catch (e) {
-    console.warn("WebSocket initialization failed: ", e);
-}
+
 
 document.addEventListener('submit', async function(e) {
     if (e.defaultPrevented) return;
@@ -301,29 +293,17 @@ document.addEventListener('click', function(e) {
                     return role;
                 }
 
+                let inMemoryGameState = null;
+
                 function getGameState() {
-                    try {
-                        const data = localStorage.getItem('mafia_game_state');
-                        return data ? JSON.parse(data) : null;
-                    } catch (e) {
-                        console.error("Error parsing game state:", e);
-                        return null;
-                    }
+                    return inMemoryGameState;
                 }
 
                 function saveGameState(state) {
-                    try {
-                        localStorage.setItem('mafia_game_state', JSON.stringify(state));
-                    } catch (e) {
-                        console.error("Error saving game state:", e);
-                    }
+                    inMemoryGameState = state;
                 }
 
                 function initializeGameState(serverPlayers, resetToken) {
-                    try {
-                        localStorage.removeItem('grave_keeper_revealed_roles');
-                        localStorage.removeItem('mafia_gk_revealed');
-                    } catch(e) {}
                     const state = {
                         phase: 'night',
                         day: 1,
@@ -699,10 +679,6 @@ document.addEventListener('click', function(e) {
                         state.grave_keeper_acted_tonight = false;
                         state.grave_keeper_revealed_roles = false;
                         state.grave_keeper_reveal_pending = false;
-                        try {
-                            localStorage.removeItem('grave_keeper_revealed_roles');
-                            localStorage.removeItem('mafia_gk_revealed');
-                        } catch(e) {}
                         state.logs.push(`Day ${state.day - 1} ended. Night ${state.day} started.`);
 
                         checkWinConditions(state);
@@ -950,16 +926,7 @@ document.addEventListener('click', function(e) {
                     // 2. NIGHT PHASE GUIDED ASSISTANT
                     if (state.phase === 'night') {
                         const gkCharges = state.grave_keeper_charges !== undefined ? state.grave_keeper_charges : 2;
-                        const localStorageGkReveal = (localStorage.getItem('grave_keeper_revealed_roles') === 'true') || (localStorage.getItem('mafia_gk_revealed') === 'true');
-                        const domGkReveal = (document.getElementById('hidden_gk_revealed')?.value === 'true') || (document.getElementById('gk_revealed_data_store')?.dataset?.revealed === 'true');
-                        const gkRevealed = !!(state.grave_keeper_revealed_roles || localStorageGkReveal || domGkReveal);
-
-                        if (gkRevealed) {
-                            try {
-                                localStorage.setItem('grave_keeper_revealed_roles', 'true');
-                                localStorage.setItem('mafia_gk_revealed', 'true');
-                            } catch (e) {}
-                        }
+                        const gkRevealed = !!(state.grave_keeper_revealed_roles || window.dbGraveReveal);
 
                         function getRoleStatus(role, state, gkRevealed) {
                             if (role === 'Grave Keeper') {
@@ -1501,7 +1468,7 @@ document.addEventListener('click', function(e) {
 
                 document.addEventListener('submit', function(e) {
                     if (e.target && (e.target.id === 'rematch-form' || e.target.id === 'reset-form' || e.target.querySelector('input[value="hide_roles"]') || e.target.querySelector('input[value="hard_reset"]'))) {
-                        localStorage.removeItem('mafia_game_state');
+                        inMemoryGameState = null;
                     }
                 });
 
@@ -1535,8 +1502,10 @@ document.addEventListener('click', function(e) {
                 document.addEventListener('click', unlockAudioContext);
                 document.addEventListener('touchstart', unlockAudioContext);
 
+                window.mafiaSoundMuted = false;
+
                 function playSound(type) {
-                    if (localStorage.getItem('mafia_sound_muted') === 'true') return;
+                    if (window.mafiaSoundMuted) return;
                     
                     let ctx = getAudioContext();
                     if (!ctx) return;
@@ -1631,9 +1600,7 @@ document.addEventListener('click', function(e) {
                 }
 
                 function toggleMute() {
-                    const isMuted = localStorage.getItem('mafia_sound_muted') === 'true';
-                    const newMuted = !isMuted;
-                    localStorage.setItem('mafia_sound_muted', newMuted ? 'true' : 'false');
+                    window.mafiaSoundMuted = !window.mafiaSoundMuted;
                     updateMuteUI();
                     
                     // Activate Context on first toggle to bypass browser autoplays blocking
@@ -1641,7 +1608,7 @@ document.addEventListener('click', function(e) {
                 }
 
                 function updateMuteUI() {
-                    const isMuted = localStorage.getItem('mafia_sound_muted') === 'true';
+                    const isMuted = !!window.mafiaSoundMuted;
                     const muteIcon = document.getElementById('mute-icon');
                     const muteText = document.getElementById('mute-text');
                     const isKu = window.currentLang === "ku";
@@ -1661,13 +1628,12 @@ document.addEventListener('click', function(e) {
                 let defaultDuration = 120; // 2 minutes default
 
                 function getRemainingSeconds() {
-                    let saved = localStorage.getItem('mafia_timer_seconds');
-                    if (saved === null) return defaultDuration;
-                    return parseInt(saved, 10);
+                    if (window.mafiaTimerSeconds === undefined || window.mafiaTimerSeconds === null) return defaultDuration;
+                    return parseInt(window.mafiaTimerSeconds, 10);
                 }
 
                 function saveRemainingSeconds(sec) {
-                    localStorage.setItem('mafia_timer_seconds', sec);
+                    window.mafiaTimerSeconds = sec;
                 }
 
                 function updateTimerDisplay() {
@@ -1692,7 +1658,7 @@ document.addEventListener('click', function(e) {
                 }
 
                 function toggleTimer() {
-                    let isRunning = localStorage.getItem('mafia_timer_running') === 'true';
+                    let isRunning = !!window.mafiaTimerRunning;
                     if (isRunning) {
                         pauseTimer();
                     } else {
@@ -1701,8 +1667,8 @@ document.addEventListener('click', function(e) {
                 }
 
                 function startTimer() {
-                    localStorage.setItem('mafia_timer_running', 'true');
-                    localStorage.setItem('mafia_timer_last_saved_time', Date.now());
+                    window.mafiaTimerRunning = true;
+                    window.mafiaTimerLastSavedTime = Date.now();
                     
                     const playBtn = document.getElementById('timer-play-btn');
                     if (playBtn) playBtn.innerText = '⏸️';
@@ -1714,7 +1680,7 @@ document.addEventListener('click', function(e) {
                             sec--;
                             saveRemainingSeconds(sec);
                             updateTimerDisplay();
-                            localStorage.setItem('mafia_timer_last_saved_time', Date.now());
+                            window.mafiaTimerLastSavedTime = Date.now();
                             
                             // Play tick sounds in last 10 seconds
                             if (sec <= 10 && sec > 0) {
@@ -1732,7 +1698,7 @@ document.addEventListener('click', function(e) {
                 }
 
                 function pauseTimer() {
-                    localStorage.setItem('mafia_timer_running', 'false');
+                    window.mafiaTimerRunning = false;
                     const playBtn = document.getElementById('timer-play-btn');
                     if (playBtn) playBtn.innerText = '▶️';
                     if (timerInterval) {
@@ -1756,9 +1722,9 @@ document.addEventListener('click', function(e) {
 
                 // Handle background/tab recovery
                 function checkAndRecoverTimer() {
-                    let isRunning = localStorage.getItem('mafia_timer_running') === 'true';
+                    let isRunning = !!window.mafiaTimerRunning;
                     if (isRunning) {
-                        let lastSaved = parseInt(localStorage.getItem('mafia_timer_last_saved_time') || '0', 10);
+                        let lastSaved = parseInt(window.mafiaTimerLastSavedTime || '0', 10);
                         if (lastSaved > 0) {
                             let elapsed = Math.floor((Date.now() - lastSaved) / 1000);
                             if (elapsed > 0) {
@@ -1766,7 +1732,7 @@ document.addEventListener('click', function(e) {
                                 let newSec = Math.max(0, sec - elapsed);
                                 saveRemainingSeconds(newSec);
                                 if (newSec === 0) {
-                                    localStorage.setItem('mafia_timer_running', 'false');
+                                    window.mafiaTimerRunning = false;
                                     playSound('alarm');
                                 }
                             }
@@ -1784,7 +1750,7 @@ document.addEventListener('click', function(e) {
 
                     // Phase Change Sound Alerts
                     const currentPhase = window.dbPhase;
-                    const savedPhase = sessionStorage.getItem('mafia_last_phase');
+                    const savedPhase = window.mafiaLastPhase;
                     if (savedPhase && savedPhase !== currentPhase) {
                         if (currentPhase === 'day') {
                             playSound('daybreak');
@@ -1792,7 +1758,7 @@ document.addEventListener('click', function(e) {
                             playSound('nightfall');
                         }
                     }
-                    sessionStorage.setItem('mafia_last_phase', currentPhase);
+                    window.mafiaLastPhase = currentPhase;
                 });
                 let lastPhaseState = window.dbPhase;
                 let lastWinnerState = window.dbWinner;
@@ -2151,15 +2117,7 @@ document.addEventListener('click', function(e) {
                     saveLocalNightAction(role, targetId, form);
 
                     if (targetId === 'yes') {
-                        try {
-                            localStorage.setItem('grave_keeper_revealed_roles', 'true');
-                            localStorage.setItem('mafia_gk_revealed', 'true');
-                        } catch(e) {}
-                    } else {
-                        try {
-                            localStorage.removeItem('grave_keeper_revealed_roles');
-                            localStorage.removeItem('mafia_gk_revealed');
-                        } catch(e) {}
+                        // Handled on server DB
                     }
                     
                     const gkButtons = card.querySelector('#gk-buttons-container');
@@ -2276,10 +2234,6 @@ document.addEventListener('click', function(e) {
                             if (gkButtons) gkButtons.classList.remove('hidden');
                             const notice = card.querySelector('.gk-notice');
                             if (notice) notice.remove();
-                            try {
-                                localStorage.removeItem('grave_keeper_revealed_roles');
-                                localStorage.removeItem('mafia_gk_revealed');
-                            } catch(e) {}
                         }
                         
                         const resultContainer = card.querySelector('.result-container');

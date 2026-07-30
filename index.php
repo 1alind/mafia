@@ -532,8 +532,6 @@ hr {
                     <?php 
                     $gk_revealed = $db['grave_keeper_revealed_roles'] ?? false;
                     ?>
-                    <input type="hidden" id="hidden_gk_revealed" value="<?php echo $gk_revealed ? 'true' : 'false'; ?>">
-                    <div id="gk_revealed_data_store" data-revealed="<?php echo $gk_revealed ? 'true' : 'false'; ?>" class="hidden"></div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <?php 
@@ -865,8 +863,7 @@ hr {
                     <script>
                     (function() {
                         try {
-                            const isRevealed = (localStorage.getItem('grave_keeper_revealed_roles') === 'true') ||
-                                               (localStorage.getItem('mafia_gk_revealed') === 'true');
+                            const isRevealed = !!window.dbGraveReveal;
                             if (isRevealed) {
                                 document.querySelectorAll('[data-role-card]').forEach(function(card) {
                                     if (card.getAttribute('data-role-dead') === 'true') {

@@ -278,11 +278,7 @@ hr {
 // Helper script for Mafia Game UI
 console.log("Mafia Game Client initialized");
 
-// Placeholder for WebSocket implementation
-const socket = new WebSocket('ws://' + window.location.host + '/ws');
-socket.onopen = () => console.log('WebSocket connected');
-socket.onmessage = (event) => console.log('WebSocket message:', event.data);
-socket.onclose = () => console.log('WebSocket disconnected');
+
 </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -426,12 +422,6 @@ socket.onclose = () => console.log('WebSocket disconnected');
                 let pollTimer = null;
                 let countdownInterval = null;
 
-                // Sync local storage reset token
-                if (localStorage.getItem('mafia_reset_token') !== lastResetToken) {
-                    localStorage.removeItem('mafia_role_revealed_' + myPlayerId);
-                    localStorage.setItem('mafia_reset_token', lastResetToken);
-                }
-
                 function renderHiddenState() {
                     const container = document.getElementById('role-container');
                     if (container) {
@@ -443,8 +433,9 @@ socket.onclose = () => console.log('WebSocket disconnected');
                 }
 
                 let isAudioPlayedOnReveal = false;
+                window.mafiaRoleRevealed = false;
                 function startLocalCountdown(roleName) {
-                    if (localStorage.getItem('mafia_role_revealed_' + myPlayerId) === 'true') {
+                    if (window.mafiaRoleRevealed) {
                         renderHiddenState();
                         return;
                     }
@@ -475,7 +466,7 @@ socket.onclose = () => console.log('WebSocket disconnected');
                             timeLeft--;
                         } else {
                             clearInterval(countdownInterval);
-                            localStorage.setItem('mafia_role_revealed_' + myPlayerId, 'true');
+                            window.mafiaRoleRevealed = true;
                             renderHiddenState();
                         }
                     }, 1000);
@@ -495,8 +486,7 @@ socket.onclose = () => console.log('WebSocket disconnected');
                             // Check if host reset the game session
                             if (dbData.reset_token && dbData.reset_token !== lastResetToken) {
                                 lastResetToken = dbData.reset_token;
-                                localStorage.setItem('mafia_reset_token', lastResetToken);
-                                localStorage.removeItem('mafia_role_revealed_' + myPlayerId);
+                                window.mafiaRoleRevealed = false;
                                 window.location.reload();
                                 return;
                             }
@@ -549,8 +539,10 @@ socket.onclose = () => console.log('WebSocket disconnected');
                 document.addEventListener('click', unlockAudioContext);
                 document.addEventListener('touchstart', unlockAudioContext);
 
+                window.mafiaSoundMuted = false;
+
                 function playSound(type) {
-                    if (localStorage.getItem('mafia_sound_muted') === 'true') return;
+                    if (window.mafiaSoundMuted) return;
                     
                     let ctx = getAudioContext();
                     if (!ctx) return;
@@ -590,16 +582,14 @@ socket.onclose = () => console.log('WebSocket disconnected');
                 }
 
                 function toggleMute() {
-                    const isMuted = localStorage.getItem('mafia_sound_muted') === 'true';
-                    const newMuted = !isMuted;
-                    localStorage.setItem('mafia_sound_muted', newMuted ? 'true' : 'false');
+                    window.mafiaSoundMuted = !window.mafiaSoundMuted;
                     updateMuteUI();
                     
                     getAudioContext();
                 }
 
                 function updateMuteUI() {
-                    const isMuted = localStorage.getItem('mafia_sound_muted') === 'true';
+                    const isMuted = !!window.mafiaSoundMuted;
                     const muteIcon = document.getElementById('mute-icon');
                     const muteText = document.getElementById('mute-text');
                     const isKu = "<?php echo get_current_lang(); ?>" === "ku";
