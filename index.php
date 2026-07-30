@@ -292,7 +292,12 @@ hr {
     window.dbWinner = <?php echo json_encode($db['winner'] ?? null); ?>;
     window.dbGraveReveal = <?php echo json_encode($db['grave_keeper_revealed_roles'] ?? false); ?>;
     window.dbGraveCharges = <?php echo json_encode($db['grave_keeper_charges'] ?? 2); ?>;
-    window.dbNightActions = <?php echo json_encode($db['night_actions'] ?? []); ?>;
+    <?php 
+    $cur_day_idx = $db['day'] ?? 1;
+    $cur_night_k = "night{$cur_day_idx}";
+    $active_night_acts = $db[$cur_night_k]['night_actions'] ?? $db['night_actions'] ?? [];
+    ?>
+    window.dbNightActions = <?php echo json_encode($active_night_acts); ?>;
     </script>
     <script src="<?php echo dirname($_SERVER['PHP_SELF']); ?>/scripts.js?v=3" defer></script>
     <meta charset="UTF-8">
@@ -614,7 +619,7 @@ hr {
                                 $cur_day = $db['day'] ?? 1;
                                 $night_key = "night{$cur_day}";
 
-                                if (isset($db[$night_key]['call']) && is_array($db[$night_key]['call']) && !empty($db[$night_key]['call'])) {
+                                if (isset($db[$night_key]['call']) && is_array($db[$night_key]['call'])) {
                                     return in_array($role, $db[$night_key]['call']);
                                 }
 
@@ -685,7 +690,9 @@ hr {
                                             </span>
                                         <?php else: ?>
                                             <?php 
-                                            $recorded_target = $db['night_actions'][$role] ?? null;
+                                            $cur_day_val = $db['day'] ?? 1;
+                                            $cur_night_key_str = "night{$cur_day_val}";
+                                            $recorded_target = $db[$cur_night_key_str]['night_actions'][$role] ?? $db['night_actions'][$role] ?? null;
                                             ?>
                                             <?php if ($is_role_holder_dead): ?>
                                                 <span class="status-badge text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-slate-800 text-slate-400 border border-slate-700">
@@ -808,7 +815,11 @@ hr {
                                 <?php endif; ?>
 
                                 <?php if ($role !== 'Grave Keeper' && !$is_role_holder_dead): ?>
-                                    <?php $recorded_target = $db['night_actions'][$role] ?? null; ?>
+                                    <?php 
+                                    $cur_day_val = $db['day'] ?? 1;
+                                    $cur_night_key_str = "night{$cur_day_val}";
+                                    $recorded_target = $db[$cur_night_key_str]['night_actions'][$role] ?? $db['night_actions'][$role] ?? null; 
+                                    ?>
                                     <div class="result-container space-y-1 <?php echo $recorded_target ? '' : 'hidden'; ?>">
                                         <div class="selected-text text-xs text-emerald-400 font-bold bg-emerald-950/40 p-2 rounded border border-emerald-900 text-center truncate">
                                             <?php if ($recorded_target === 'none'): ?>

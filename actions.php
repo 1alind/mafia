@@ -640,11 +640,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($action === 'next_phase') {
             if ($db['phase'] === 'night') {
-                $mafia_target = $db['night_actions']['Mafia'] ?? $db['night_actions']['Mafia Boss'] ?? null;
-                $mafia_doc_target = $db['night_actions']['Mafia Doctor'] ?? null;
-                $town_doc_target = $db['night_actions']['Town Doctor'] ?? null;
-                $police_target = $db['night_actions']['Police'] ?? null;
-                $suicidal_bomb_target = $db['night_actions']['Suicidal Bomb'] ?? null;
+                $cur_day = $db['day'] ?? 1;
+                $night_key = "night{$cur_day}";
+                $night_actions_map = $db[$night_key]['night_actions'] ?? $db['night_actions'] ?? [];
+
+                $mafia_target = $night_actions_map['Mafia'] ?? $night_actions_map['Mafia Boss'] ?? null;
+                $mafia_doc_target = $night_actions_map['Mafia Doctor'] ?? null;
+                $town_doc_target = $night_actions_map['Town Doctor'] ?? null;
+                $police_target = $night_actions_map['Police'] ?? null;
+                $suicidal_bomb_target = $night_actions_map['Suicidal Bomb'] ?? null;
 
                 if ($mafia_target === 'none') $mafia_target = null;
                 if ($mafia_doc_target === 'none') $mafia_doc_target = null;
@@ -905,7 +909,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 // 5. Deceiver Target
-                $deceiver_target = $db['night_actions']['Deceiver'] ?? null;
+                $deceiver_target = $night_actions_map['Deceiver'] ?? null;
                 if ($deceiver_target) {
                     $diary[] = [
                         'en' => "• 🎭 <strong>Deceiver</strong> disguised <strong class='text-violet-400'>$deceiver_target</strong>.",
@@ -915,7 +919,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
 
                 // 6. Investigator Target
-                $investigator_target = $db['night_actions']['Investigator'] ?? null;
+                $investigator_target = $night_actions_map['Investigator'] ?? null;
                 if ($investigator_target) {
                     $eval_res = evaluate_investigation($investigator_target, $db);
                     $target_role = '';
@@ -1122,7 +1126,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $db['day'] = $next_day;
                 $next_night_key = "night{$next_day}";
 
-                if (empty($db[$next_night_key]['call'])) {
+                if (!isset($db[$next_night_key])) {
+                    $db[$next_night_key] = [
+                        'call' => null,
+                        'night_actions' => [],
+                        'gravedigger_decision' => null
+                    ];
+                }
+
+                if (!isset($db[$next_night_key]['call']) || !is_array($db[$next_night_key]['call'])) {
                     $assigned = $db['assigned_night_roles'] ?? ['Mafia', 'Mafia Doctor', 'Deceiver', 'Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Suicidal Bomb'];
                     $roles_ever_revealed = false;
                     for ($d = 1; $d <= $prev_day; $d++) {
@@ -1169,12 +1181,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             }
                         }
                     }
-                    $db[$next_night_key] = [
-                        'call' => $next_calls,
-                        'night_actions' => [],
-                        'gravedigger_decision' => null
-                    ];
+                    $db[$next_night_key]['call'] = $next_calls;
                 }
+
+                $db['night_actions'] = $db[$next_night_key]['night_actions'] ?? [];
 
                 $db['last_night_report'] = null;
                 $db['investigation_results'] = [];
