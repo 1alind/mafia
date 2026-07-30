@@ -613,6 +613,13 @@ hr {
 
                         if (!function_exists('should_call_role')) {
                             function should_call_role($role, $db, $gk_revealed) {
+                                $cur_day = $db['day'] ?? 1;
+                                $night_key = "night{$cur_day}";
+
+                                if (isset($db[$night_key]['call']) && is_array($db[$night_key]['call'])) {
+                                    return in_array($role, $db[$night_key]['call']);
+                                }
+
                                 $status = get_role_status($role, $db, $gk_revealed);
                                 if ($status === 'active') return true;  // call during night
                                 if ($status === 'dead') return true;    // call during night (action disabled)
@@ -728,7 +735,7 @@ hr {
                                     <?php else: ?>
                                         <input type="hidden" name="action" value="record_night_target">
                                         <input type="hidden" name="role" value="<?php echo $role; ?>">
-                                        <select name="target_id" class="target-select w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded p-2 focus:outline-none focus:border-rose-500">
+                                        <select name="target_id" class="target-select w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded p-2 focus:outline-none focus:border-rose-500 <?php echo $recorded_target ? 'hidden' : ''; ?>">
                                             <option value="none" <?php echo ($recorded_target === 'none') ? 'selected' : ''; ?>><?php echo __('none_no_selection'); ?></option>
                                             <?php 
                                             $town_doc_self_count = $db['town_doctor_self_protect_count'] ?? 0;
@@ -743,8 +750,6 @@ hr {
                                                 }
 
                                                 if ($role === 'Police' && $p['name'] === ($active_game_roles['Police'] ?? '')) continue;
-                                                // Investigator can target anyone in game
-                                                // Suicidal Bomb can target anyone in game
 
                                                 if ($role === 'Town Doctor' && $p['name'] === ($active_game_roles['Town Doctor'] ?? '') && $town_doc_self_count >= 2) {
                                                     continue;
@@ -786,6 +791,11 @@ hr {
                                             <?php else: ?>
                                                 <?php echo __('selected'); ?> <?php echo htmlspecialchars($recorded_target ?? ''); ?>
                                             <?php endif; ?>
+                                        </div>
+                                        <div class="flex items-center justify-end">
+                                            <button type="button" onclick="cancelNightAction('<?php echo $role; ?>')" class="text-[11px] text-amber-400 hover:text-amber-300 font-bold underline bg-amber-950/40 px-2.5 py-1 rounded border border-amber-900/60 transition">
+                                                ✏️ <?php echo get_current_lang() === 'ku' ? 'گوهۆرین' : (get_current_lang() === 'ar' ? 'تعديل' : 'Edit Target'); ?>
+                                            </button>
                                         </div>
 
                                         <?php if ($role === 'Investigator'): 

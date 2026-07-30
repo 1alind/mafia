@@ -1937,6 +1937,11 @@ document.addEventListener('click', function(e) {
                         statusBadge.innerText = i18nTxt.recorded || 'Recorded';
                     }
                     
+                    const selectElem = card.querySelector('.target-select');
+                    if (selectElem) {
+                        selectElem.classList.add('hidden');
+                    }
+
                     const buttonsContainer = card.querySelector('.buttons-container');
                     if (buttonsContainer) {
                         buttonsContainer.classList.add('hidden');
@@ -2248,9 +2253,18 @@ document.addEventListener('click', function(e) {
                         if (targetDisplay) targetDisplay.innerText = '';
                         const cancelBtn = card.querySelector('.cancel-btn');
                         if (cancelBtn) cancelBtn.classList.add('hidden');
-                        const targetSelect = card.querySelector('.target-select');
-                        if (targetSelect) targetSelect.value = '';
                         
+                        const targetSelect = card.querySelector('.target-select');
+                        if (targetSelect) {
+                            targetSelect.classList.remove('hidden');
+                            targetSelect.value = 'none';
+                        }
+                        
+                        const buttonsContainer = card.querySelector('.buttons-container');
+                        if (buttonsContainer) {
+                            buttonsContainer.classList.remove('hidden');
+                        }
+
                         const statusBadge = card.querySelector('.status-badge');
                         if (statusBadge) {
                             statusBadge.className = "status-badge text-[10px] bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded font-bold uppercase";
@@ -2303,16 +2317,15 @@ document.addEventListener('click', function(e) {
                         const resultContainer = card.querySelector('.result-container');
                         const selectedText = card.querySelector('.selected-text');
                         const selectElem = card.querySelector('.target-select');
+                        const buttonsContainer = card.querySelector('.buttons-container');
 
                         if (recordedTarget) {
                             if (statusBadge) {
                                 statusBadge.className = "status-badge text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-bold uppercase";
                                 statusBadge.innerText = i18nTxt.recorded;
                             }
-                            const buttonsContainer = card.querySelector('.buttons-container');
-                            if (buttonsContainer) {
-                                buttonsContainer.classList.add('hidden');
-                            }
+                            if (selectElem) selectElem.classList.add('hidden');
+                            if (buttonsContainer) buttonsContainer.classList.add('hidden');
                             if (cancelBtn) cancelBtn.classList.add('hidden');
                             if (resultContainer) resultContainer.classList.remove('hidden');
                             if (selectedText) {
@@ -2382,7 +2395,11 @@ document.addEventListener('click', function(e) {
                                 statusBadge.className = "status-badge text-[10px] bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded font-bold uppercase";
                                 statusBadge.innerText = i18nTxt.pending;
                             }
-                            if (selectElem) selectElem.value = "";
+                            if (selectElem) {
+                                selectElem.classList.remove('hidden');
+                                selectElem.value = "none";
+                            }
+                            if (buttonsContainer) buttonsContainer.classList.remove('hidden');
                             if (cancelBtn) cancelBtn.classList.add('hidden');
                             if (resultContainer) resultContainer.classList.add('hidden');
                         }
