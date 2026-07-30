@@ -37,6 +37,14 @@ function get_db() {
         $db['host_password'] = '1234';
         save_db($db);
     }
+    for ($n = 1; $n <= 15; $n++) {
+        if (!isset($db["night{$n}"])) {
+            $db["night{$n}"] = ['call' => [], 'night_actions' => [], 'gravedigger_decision' => null];
+        }
+        if (!isset($db["day{$n}"])) {
+            $db["day{$n}"] = ['gravedigger_decision' => null, 'report' => null, 'killed' => []];
+        }
+    }
     return $db;
 }
 
@@ -233,6 +241,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $db['night_actions'] = [];
                 $db['winner'] = null;
                 $db['reset_token'] = uniqid('rst_', true);
+
+                // Build initial active calling roles list for Night 1
+                $calling_roles = [];
+                $possible_night_roles = ['Mafia', 'Mafia Doctor', 'Deceiver', 'Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Suicidal Bomb'];
+                foreach ($possible_night_roles as $r) {
+                    if ($r === 'Mafia') {
+                        foreach ($deck as $card) {
+                            if (in_array($card, ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia'])) {
+                                $calling_roles[] = 'Mafia';
+                                break;
+                            }
+                        }
+                    } else {
+                        if (in_array($r, $deck)) {
+                            $calling_roles[] = $r;
+                        }
+                    }
+                }
+
+                $db['assigned_night_roles'] = $calling_roles;
+
+                // Create individual database blocks for night1..night15 and day1..day15
+                for ($n = 1; $n <= 15; $n++) {
+                    $db["night{$n}"] = [
+                        'call' => ($n === 1 ? $calling_roles : []),
+                        'night_actions' => [],
+                        'gravedigger_decision' => null
+                    ];
+                    $db["day{$n}"] = [
+                        'gravedigger_decision' => null,
+                        'report' => null,
+                        'killed' => []
+                    ];
+                }
+
                 $db['logs'][] = "Roles distributed to {$total_players} players ({$mafia_count} Mafia). Night 1 started.";
                 save_db($db);
             }
@@ -358,6 +401,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if ($action === 'record_night_target') {
             $role = $_POST['role'] ?? '';
             $target_id = $_POST['target_id'] ?? $_POST['reveal_answer'] ?? '';
+            $cur_day = $db['day'] ?? 1;
+            $night_key = "night{$cur_day}";
+            $day_key = "day{$cur_day}";
+
+            if (!isset($db[$night_key])) {
+                $db[$night_key] = ['call' => [], 'night_actions' => [], 'gravedigger_decision' => null];
+            }
+            if (!isset($db[$day_key])) {
+                $db[$day_key] = ['gravedigger_decision' => null, 'report' => null, 'killed' => []];
+            }
 
             if ($role === 'Grave Keeper') {
                 $answer = $target_id;
@@ -375,6 +428,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $answer = 'no';
                 }
 
+                $db[$night_key]['gravedigger_decision'] = $answer;
+                $db[$day_key]['gravedigger_decision'] = $answer;
+
                 if ($answer === 'yes') {
                     $db['grave_keeper_reveal_pending'] = true;
                     $db['grave_keeper_revealed_roles'] = true;
@@ -388,11 +444,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
                 $db['grave_keeper_acted_tonight'] = true;
                 $db['night_actions']['Grave Keeper'] = $answer;
+                $db[$night_key]['night_actions']['Grave Keeper'] = $answer;
             } else {
                 $target_name = null;
 
                 if ($target_id === 'none') {
                     $db['night_actions'][$role] = 'none';
+                    $db[$night_key]['night_actions'][$role] = 'none';
                 } else {
                     if ($target_id !== '') {
                         foreach ($db['players'] as $p) {
@@ -405,8 +463,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                     if ($target_name) {
                         $db['night_actions'][$role] = $target_name;
+                        $db[$night_key]['night_actions'][$role] = $target_name;
                     } else {
                         unset($db['night_actions'][$role]);
+                        unset($db[$night_key]['night_actions'][$role]);
                     }
                 }
             }
@@ -434,6 +494,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($action === 'submit_all_night_actions') {
             $actions = json_decode($_POST['actions'], true);
+            $cur_day = $db['day'] ?? 1;
+            $night_key = "night{$cur_day}";
+            $day_key = "day{$cur_day}";
+
+            if (!isset($db[$night_key])) {
+                $db[$night_key] = ['call' => [], 'night_actions' => [], 'gravedigger_decision' => null];
+            }
+            if (!isset($db[$day_key])) {
+                $db[$day_key] = ['gravedigger_decision' => null, 'report' => null, 'killed' => []];
+            }
+
             foreach ($actions as $role => $target_id) {
                 if ($role === 'Grave Keeper') {
                     $answer = $target_id;
@@ -451,6 +522,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         $answer = 'no';
                     }
 
+                    $db[$night_key]['gravedigger_decision'] = $answer;
+                    $db[$day_key]['gravedigger_decision'] = $answer;
+
                     if ($answer === 'yes') {
                         $db['grave_keeper_reveal_pending'] = true;
                         $db['grave_keeper_revealed_roles'] = true;
@@ -464,12 +538,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                     $db['grave_keeper_acted_tonight'] = true;
                     $db['night_actions']['Grave Keeper'] = $answer;
+                    $db[$night_key]['night_actions']['Grave Keeper'] = $answer;
                     continue;
                 }
 
                 $target_name = null;
                 if ($target_id === 'none') {
                     $db['night_actions'][$role] = 'none';
+                    $db[$night_key]['night_actions'][$role] = 'none';
                 } else {
                     if ($target_id !== '') {
                         foreach ($db['players'] as $p) {
@@ -481,8 +557,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                     if ($target_name) {
                         $db['night_actions'][$role] = $target_name;
+                        $db[$night_key]['night_actions'][$role] = $target_name;
                     } else {
                         unset($db['night_actions'][$role]);
+                        unset($db[$night_key]['night_actions'][$role]);
                     }
                 }
             }
@@ -506,6 +584,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($action === 'answer_grave_keeper_reveal') {
             $answer = $_POST['reveal_answer'] ?? 'no';
+            $cur_day = $db['day'] ?? 1;
+            $night_key = "night{$cur_day}";
+            $day_key = "day{$cur_day}";
+
+            if (!isset($db[$night_key])) {
+                $db[$night_key] = ['call' => [], 'night_actions' => [], 'gravedigger_decision' => null];
+            }
+            if (!isset($db[$day_key])) {
+                $db[$day_key] = ['gravedigger_decision' => null, 'report' => null, 'killed' => []];
+            }
 
             // Check if Grave Keeper is dead
             $is_gk_dead = false;
@@ -522,6 +610,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $answer = 'no';
             }
 
+            $db[$night_key]['gravedigger_decision'] = $answer;
+            $db[$day_key]['gravedigger_decision'] = $answer;
+
             if ($answer === 'yes') {
                 $db['grave_keeper_reveal_pending'] = true;
                 $db['grave_keeper_revealed_roles'] = true;
@@ -531,8 +622,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
             } else {
                 $db['grave_keeper_reveal_pending'] = false;
+                $db['grave_keeper_revealed_roles'] = false;
             }
             $db['grave_keeper_acted_tonight'] = true;
+            $db['night_actions']['Grave Keeper'] = $answer;
+            $db[$night_key]['night_actions']['Grave Keeper'] = $answer;
             save_db($db);
 
             if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) || !empty($_POST['ajax'])) {
@@ -913,8 +1007,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     ];
                 }
 
+                $cur_day = $db['day'] ?? 1;
+                $night_key = "night{$cur_day}";
+                $day_key = "day{$cur_day}";
+
+                $gravedigger_ans = $db[$night_key]['gravedigger_decision'] 
+                    ?? $db[$day_key]['gravedigger_decision'] 
+                    ?? ($db['night_actions']['Grave Keeper'] ?? 'no');
+
+                $db[$night_key]['gravedigger_decision'] = $gravedigger_ans;
+                $db[$day_key]['gravedigger_decision'] = $gravedigger_ans;
+
                 $revealed_roles = [];
-                if (($db['grave_keeper_reveal_pending'] ?? false) || ($db['grave_keeper_revealed_roles'] ?? false)) {
+                if ($gravedigger_ans === 'yes') {
                     foreach ($db['players'] as $p) {
                         if (($p['status'] ?? '') === 'dead' || in_array($p['name'], $final_killed)) {
                             $revealed_roles[$p['name']] = $p['role'] ?? 'Citizen';
@@ -923,8 +1028,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $db['grave_keeper_revealed_roles'] = true;
                     $db['grave_keeper_reveal_pending'] = false;
                     $db['gravedigger_reveal_pending'] = false;
+                    $db[$day_key]['revealed_roles'] = $revealed_roles;
                 } else {
                     $db['grave_keeper_revealed_roles'] = false;
+                    $db[$day_key]['revealed_roles'] = [];
                 }
 
                 $db['last_night_report'] = [
@@ -932,6 +1039,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'saved_names' => array_values(array_unique($saved_names)),
                     'diary_entries' => $diary,
                     'revealed_roles' => $revealed_roles
+                ];
+
+                $db[$day_key]['report'] = $db['last_night_report'];
+                $db[$day_key]['killed'] = array_values($final_killed);
+
+                // Prepare call list for next night (night{cur_day + 1})
+                $next_night_num = $cur_day + 1;
+                $next_night_key = "night{$next_night_num}";
+                $assigned = $db['assigned_night_roles'] ?? ['Mafia', 'Mafia Doctor', 'Deceiver', 'Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Suicidal Bomb'];
+
+                $next_calls = [];
+                if ($gravedigger_ans === 'no') {
+                    // Gravedigger said NO: identities of dead players were NOT revealed.
+                    // Put ALL assigned special roles in next night call database so secrecy is preserved.
+                    foreach ($assigned as $r) {
+                        if ($r === 'Grave Keeper') {
+                            if (($db['grave_keeper_charges'] ?? 2) > 0) $next_calls[] = 'Grave Keeper';
+                        } else {
+                            $next_calls[] = $r;
+                        }
+                    }
+                } else {
+                    // Gravedigger said YES: identities of dead players WERE revealed!
+                    // Filter out dead roles from next night call database.
+                    foreach ($assigned as $r) {
+                        if ($r === 'Grave Keeper') {
+                            if (($db['grave_keeper_charges'] ?? 2) > 0) $next_calls[] = 'Grave Keeper';
+                        } elseif ($r === 'Mafia') {
+                            $mafia_alive = false;
+                            foreach ($db['players'] as $p) {
+                                if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']) && $p['status'] === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                                    $mafia_alive = true;
+                                    break;
+                                }
+                            }
+                            if ($mafia_alive) $next_calls[] = 'Mafia';
+                        } else {
+                            $holder_alive = false;
+                            foreach ($db['players'] as $p) {
+                                if (($p['role'] ?? '') === $r && $p['status'] === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
+                                    $holder_alive = true;
+                                    break;
+                                }
+                            }
+                            if ($holder_alive) $next_calls[] = $r;
+                        }
+                    }
+                }
+
+                $db[$next_night_key] = [
+                    'call' => $next_calls,
+                    'night_actions' => [],
+                    'gravedigger_decision' => null
                 ];
 
                 $db['phase'] = 'day';
@@ -943,8 +1103,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 save_db($db);
 
             } elseif ($db['phase'] === 'day') {
+                $prev_day = $db['day'] ?? 1;
+                $next_day = $prev_day + 1;
                 $db['phase'] = 'night';
-                $db['day'] = ($db['day'] ?? 1) + 1;
+                $db['day'] = $next_day;
+                $next_night_key = "night{$next_day}";
+
+                if (empty($db[$next_night_key]['call'])) {
+                    $prev_day_key = "day{$prev_day}";
+                    $prev_ans = $db[$prev_day_key]['gravedigger_decision'] ?? 'no';
+                    $assigned = $db['assigned_night_roles'] ?? ['Mafia', 'Mafia Doctor', 'Deceiver', 'Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Suicidal Bomb'];
+                    $next_calls = [];
+
+                    if ($prev_ans === 'no') {
+                        foreach ($assigned as $r) {
+                            if ($r === 'Grave Keeper') {
+                                if (($db['grave_keeper_charges'] ?? 2) > 0) $next_calls[] = 'Grave Keeper';
+                            } else {
+                                $next_calls[] = $r;
+                            }
+                        }
+                    } else {
+                        foreach ($assigned as $r) {
+                            if ($r === 'Grave Keeper') {
+                                if (($db['grave_keeper_charges'] ?? 2) > 0) $next_calls[] = 'Grave Keeper';
+                            } elseif ($r === 'Mafia') {
+                                $mafia_alive = false;
+                                foreach ($db['players'] as $p) {
+                                    if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']) && $p['status'] === 'alive') {
+                                        $mafia_alive = true;
+                                        break;
+                                    }
+                                }
+                                if ($mafia_alive) $next_calls[] = 'Mafia';
+                            } else {
+                                $holder_alive = false;
+                                foreach ($db['players'] as $p) {
+                                    if (($p['role'] ?? '') === $r && $p['status'] === 'alive') {
+                                        $holder_alive = true;
+                                        break;
+                                    }
+                                }
+                                if ($holder_alive) $next_calls[] = $r;
+                            }
+                        }
+                    }
+                    $db[$next_night_key] = [
+                        'call' => $next_calls,
+                        'night_actions' => [],
+                        'gravedigger_decision' => null
+                    ];
+                }
+
                 $db['last_night_report'] = null;
                 $db['investigation_results'] = [];
                 $db['grave_keeper_acted_tonight'] = false;
