@@ -299,7 +299,9 @@ hr {
     ?>
     window.dbNightActions = <?php echo json_encode($active_night_acts); ?>;
     </script>
-    <script src="<?php echo dirname($_SERVER['PHP_SELF']); ?>/scripts.js?v=3" defer></script>
+    <script>
+    <?php echo file_get_contents(__DIR__ . '/scripts.js'); ?>
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo __('app_title_host'); ?></title>

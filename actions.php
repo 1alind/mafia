@@ -77,7 +77,9 @@ function evaluate_investigation($target_name, $db) {
     }
 
     // 2. Check if deceiver is alive and has targeted the investigator's target
-    $deceiver_target = $db['night_actions']['Deceiver'] ?? null;
+    $cur_day_val = $db['day'] ?? 1;
+    $cur_night_key = "night{$cur_day_val}";
+    $deceiver_target = $db[$cur_night_key]['night_actions']['Deceiver'] ?? $db['night_actions']['Deceiver'] ?? null;
     $deceiver_alive = false;
     foreach ($db['players'] as $p) {
         if (($p['role'] ?? '') === 'Deceiver' && $p['status'] === 'alive') {
@@ -455,7 +457,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 } else {
                     if ($target_id !== '') {
                         foreach ($db['players'] as $p) {
-                            if ($p['id'] === $target_id) {
+                            if ((string)$p['id'] === (string)$target_id || $p['name'] === $target_id) {
                                 $target_name = $p['name'];
                                 break;
                             }
@@ -473,7 +475,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
 
             // Always recalculate investigation result if Investigator target is selected
-            $investigator_target = $db['night_actions']['Investigator'] ?? null;
+            $investigator_target = $db[$night_key]['night_actions']['Investigator'] ?? $db['night_actions']['Investigator'] ?? null;
             if ($investigator_target && $investigator_target !== 'none') {
                 $eval_res = evaluate_investigation($investigator_target, $db);
                 $db['investigation_results'] = [
@@ -550,7 +552,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 } else {
                     if ($target_id !== '') {
                         foreach ($db['players'] as $p) {
-                            if ($p['id'] === $target_id || $p['name'] === $target_id) {
+                            if ((string)$p['id'] === (string)$target_id || $p['name'] === $target_id) {
                                 $target_name = $p['name'];
                                 break;
                             }
@@ -567,7 +569,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
             
             // Always recalculate investigation result if Investigator target is selected
-            $investigator_target = $db['night_actions']['Investigator'] ?? null;
+            $investigator_target = $db[$night_key]['night_actions']['Investigator'] ?? $db['night_actions']['Investigator'] ?? null;
             if ($investigator_target && $investigator_target !== 'none') {
                 $eval_res = evaluate_investigation($investigator_target, $db);
                 $db['investigation_results'] = [

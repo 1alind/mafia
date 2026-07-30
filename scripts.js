@@ -14,92 +14,56 @@ document.addEventListener('submit', async function(e) {
         if (e.submitter && e.submitter.name) {
             formData.append(e.submitter.name, e.submitter.value);
         }
-        
-        // Handle record_night_target locally
-        if (formData.get('action') === 'record_night_target' || formData.get('action') === 'answer_grave_keeper_reveal') {
-            if (!window.localNightActions) window.localNightActions = {};
-            const role = formData.get('role') || 'Grave Keeper';
-            const val = formData.get('target_id') || formData.get('reveal_answer') || '';
-            if (val !== '') {
-                window.localNightActions[role] = val;
-            }
-            console.log('Action stored locally:', window.localNightActions);
-            
-            const btn = e.target.querySelector('button[type="submit"]');
-            if (btn) {
-                const originalText = btn.innerText;
-                btn.innerText = '✅ Saved';
-                setTimeout(() => btn.innerText = originalText, 2000);
-            }
-            
-            const targetSelect = e.target.querySelector('.target-select');
-            let targetName = '';
-            if (targetSelect && targetSelect.selectedIndex !== -1) {
-                targetName = targetSelect.options[targetSelect.selectedIndex].text;
-            }
-            const targetDisplay = e.target.querySelector('.target-display');
-            if (targetDisplay) {
-                targetDisplay.innerText = (targetSelect && targetSelect.value !== '') ? `Target: ${targetName.trim()}` : '';
-            }
-            const buttonsContainer = e.target.querySelector('.buttons-container');
-            if (buttonsContainer) buttonsContainer.classList.add('hidden');
-            const cancelBtn = e.target.querySelector('.cancel-btn');
-            if (cancelBtn) cancelBtn.classList.add('hidden');
-            
-            return;
+        formData.append('ajax', '1');
+
+        const btn = e.target.querySelector('button[type="submit"]');
+        let originalText = '';
+        if (btn) {
+            originalText = btn.innerText;
+            btn.innerText = '✅ Saved';
+            setTimeout(() => { if (btn) btn.innerText = originalText; }, 1500);
         }
 
-        // Special handling for Next Phase to submit local actions
-        if (formData.get('action') === 'next_phase') {
-            if (!window.localNightActions) window.localNightActions = {};
-            document.querySelectorAll('[data-role-card]').forEach(card => {
-                const role = card.getAttribute('data-role-card');
-                const select = card.querySelector('.target-select');
-                if (role && select && select.value !== '') {
-                    window.localNightActions[role] = select.value;
-                }
-            });
-
-            if (Object.keys(window.localNightActions).length > 0) {
-                 const bulkFormData = new FormData();
-                 bulkFormData.append('action', 'submit_all_night_actions');
-                 bulkFormData.append('actions', JSON.stringify(window.localNightActions));
-                 bulkFormData.append('ajax', '1');
-                 
-                 await fetch('actions.php?ajax=1', {
-                     method: 'POST',
-                     body: bulkFormData
-                  });
-                 window.localNightActions = {}; // Clear after successful submit
-            }
-        }
-        
         try {
-            const response = await fetch(window.location.href, {
+            const actionValue = formData.get('action');
+            const targetUrl = (actionValue === 'record_night_target' || actionValue === 'answer_grave_keeper_reveal' || actionValue === 'next_phase' || actionValue === 'submit_all_night_actions') ? 'actions.php?ajax=1' : window.location.href;
+            
+            const response = await fetch(targetUrl, {
                 method: 'POST',
                 body: formData
             });
-            
-            if (formData.get('action') === 'next_phase' && typeof pollHost === 'function') {
-                 pollHost();
-            }
-            
+
             if (response.ok) {
-                console.log('Form submitted successfully via AJAX');
-                
-                // If this is a rematch, reset, session reset, share roles, or claim host, perform a clean full page reload!
-                const actionValue = formData.get('action');
-                if (actionValue === 'hide_roles' || actionValue === 'hard_reset' || actionValue === 'reset_session' || actionValue === 'share_roles' || actionValue === 'claim_host') {
+                console.log('Form submitted directly to server DB');
+                if (['next_phase', 'hide_roles', 'hard_reset', 'reset_session', 'share_roles', 'claim_host', 'kill_player', 'revive_player', 'change_role', 'rename_player'].includes(actionValue)) {
                     window.location.reload();
                     return;
                 }
 
-                const html = await response.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                
-                const newContainer = doc.getElementById('main-container');
-                const currentContainer = document.getElementById('main-container');
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    const role = formData.get('role');
+                    if (role && typeof refreshNightCardUI === 'function') {
+                        refreshNightCardUI(role, data);
+                    }
+                } else {
+                    const html = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    
+                    const newContainer = doc.getElementById('main-container');
+                    const currentContainer = document.getElementById('main-container');
+                    if (newContainer && currentContainer) {
+                        currentContainer.innerHTML = newContainer.innerHTML;
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Form submit error:', err);
+        }
+    }
+});
                 if (newContainer && currentContainer) {
                     currentContainer.innerHTML = newContainer.innerHTML;
                 } else if (doc.body) {
@@ -1875,21 +1839,32 @@ document.addEventListener('click', function(e) {
                 // Background polling removed per user request
                 // function pollHost is still available for manual/form updates if needed
 
-                // Helper to save action locally and show save feedback on button
+                // Helper to save action directly to server DB and show save feedback on button
                 function saveLocalNightAction(role, targetId, form) {
-                    if (!window.localNightActions) window.localNightActions = {};
-                    if (targetId) {
-                        window.localNightActions[role] = targetId;
-                    } else {
-                        delete window.localNightActions[role];
-                    }
+                    const formData = new FormData();
+                    formData.append('action', 'record_night_target');
+                    formData.append('role', role);
+                    formData.append('target_id', targetId || 'none');
+                    formData.append('ajax', '1');
+
+                    fetch('actions.php?ajax=1', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (typeof refreshNightCardUI === 'function') {
+                            refreshNightCardUI(role, data);
+                        }
+                    })
+                    .catch(err => console.error('Error saving night action to server DB:', err));
 
                     if (form) {
                         const btn = form.querySelector('button[type="submit"]');
                         if (btn) {
                             const originalText = btn.innerText;
                             btn.innerText = '✅ Saved';
-                            setTimeout(() => btn.innerText = originalText, 1500);
+                            setTimeout(() => { if (btn) btn.innerText = originalText; }, 1500);
                         }
                     }
                 }
@@ -2199,52 +2174,26 @@ document.addEventListener('click', function(e) {
                 });
 
                 function cancelNightAction(role) {
-                    // Update local storage
-                    if (window.localNightActions) {
-                        delete window.localNightActions[role];
-                    }
+                    const formData = new FormData();
+                    formData.append('action', 'record_night_target');
+                    formData.append('role', role);
+                    formData.append('target_id', '');
+                    formData.append('ajax', '1');
 
-                    // Update UI
-                    const card = document.querySelector(`[data-role-card="${role}"]`);
-                    if (card) {
-                        const targetDisplay = card.querySelector('.target-display');
-                        if (targetDisplay) targetDisplay.innerText = '';
-                        const cancelBtn = card.querySelector('.cancel-btn');
-                        if (cancelBtn) cancelBtn.classList.add('hidden');
-                        
-                        const targetSelect = card.querySelector('.target-select');
-                        if (targetSelect) {
-                            targetSelect.classList.remove('hidden');
-                            targetSelect.value = 'none';
+                    fetch('actions.php?ajax=1', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (typeof refreshNightCardUI === 'function') {
+                            refreshNightCardUI(role, data);
                         }
-                        
-                        const buttonsContainer = card.querySelector('.buttons-container');
-                        if (buttonsContainer) {
-                            buttonsContainer.classList.remove('hidden');
-                        }
-
-                        const statusBadge = card.querySelector('.status-badge');
-                        if (statusBadge) {
-                            statusBadge.className = "status-badge text-[10px] bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded font-bold uppercase";
-                            statusBadge.innerText = i18nTxt.pending || 'Pending';
-                        }
-
-                        if (role === 'Grave Keeper') {
-                            const gkButtons = card.querySelector('#gk-buttons-container');
-                            if (gkButtons) gkButtons.classList.remove('hidden');
-                            const notice = card.querySelector('.gk-notice');
-                            if (notice) notice.remove();
-                        }
-                        
-                        const resultContainer = card.querySelector('.result-container');
-                        if (resultContainer) resultContainer.classList.add('hidden');
-                    }
+                    })
+                    .catch(err => console.error('Error clearing night action on server DB:', err));
                 }
 
                 function refreshNightCardUI(role, data) {
-                    if (window.localNightActions && window.localNightActions.hasOwnProperty(role)) {
-                        return; // Do not overwrite local unsaved changes with server state
-                    }
                     const card = document.querySelector(`[data-role-card="${role}"]`);
                     if (!card) return;
 
