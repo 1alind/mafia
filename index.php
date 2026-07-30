@@ -616,15 +616,48 @@ hr {
                                 $cur_day = $db['day'] ?? 1;
                                 $night_key = "night{$cur_day}";
 
-                                if (isset($db[$night_key]['call']) && is_array($db[$night_key]['call'])) {
+                                if (isset($db[$night_key]['call']) && is_array($db[$night_key]['call']) && !empty($db[$night_key]['call'])) {
                                     return in_array($role, $db[$night_key]['call']);
                                 }
 
-                                $status = get_role_status($role, $db, $gk_revealed);
-                                if ($status === 'active') return true;  // call during night
-                                if ($status === 'dead') return true;    // call during night (action disabled)
-                                if ($status === 'hidden') return false; // don't call during night
-                                return false;
+                                $assigned = $db['assigned_night_roles'] ?? ['Mafia', 'Mafia Doctor', 'Deceiver', 'Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Suicidal Bomb'];
+                                if (!in_array($role, $assigned)) return false;
+
+                                $roles_ever_revealed = false;
+                                for ($d = 1; $d <= $cur_day; $d++) {
+                                    if (($db["day{$d}"]['gravedigger_decision'] ?? 'no') === 'yes' || ($db["night{$d}"]['gravedigger_decision'] ?? 'no') === 'yes') {
+                                        $roles_ever_revealed = true;
+                                        break;
+                                    }
+                                }
+                                if (!empty($db['grave_keeper_revealed_roles'])) {
+                                    $roles_ever_revealed = true;
+                                }
+
+                                if (!$roles_ever_revealed) {
+                                    if ($role === 'Grave Keeper') {
+                                        return ($db['grave_keeper_charges'] ?? 2) > 0;
+                                    }
+                                    return true;
+                                } else {
+                                    if ($role === 'Grave Keeper') {
+                                        return ($db['grave_keeper_charges'] ?? 2) > 0;
+                                    } elseif ($role === 'Mafia') {
+                                        foreach ($db['players'] as $p) {
+                                            if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']) && ($p['status'] ?? '') === 'alive') {
+                                                return true;
+                                            }
+                                        }
+                                        return false;
+                                    } else {
+                                        foreach ($db['players'] as $p) {
+                                            if (($p['role'] ?? '') === $role && ($p['status'] ?? '') === 'alive') {
+                                                return true;
+                                            }
+                                        }
+                                        return false;
+                                    }
+                                }
                             }
                         }
 
