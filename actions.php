@@ -182,7 +182,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'name' => $name,
                     'browser_id' => $my_browser_id,
                     'role' => 'Pending',
-                    'status' => 'alive'
+                    'status' => 'alive',
+                    'revealed' => 'no'
                 ];
                 $_SESSION['player_id'] = $pid;
                 $db['logs'][] = "Player '{$name}' joined the game.";
@@ -233,7 +234,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 for ($i = 0; $i < $total_players; $i++) {
                     $players[$i]['role'] = $deck[$i];
-                    $players[$i]['status'] = 'alive';
+                    $players[$i]["status"] = "alive";
+                    $players[$i]["revealed"] = "no";
                 }
 
                 $db['roles_shared'] = true;
@@ -288,7 +290,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if ($action === 'hide_roles') {
             foreach ($db['players'] as &$p) {
                 $p['role'] = 'Pending';
-                $p['status'] = 'alive';
+                $p["status"] = "alive";
+                $p["revealed"] = "no";
             }
             $db['roles_shared'] = false;
             $db['phase'] = 'setup';
@@ -351,7 +354,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'name' => $found_name,
                     'browser_id' => 'bot_' . $pid,
                     'role' => 'Pending',
-                    'status' => 'alive'
+                    'status' => 'alive',
+                    'revealed' => 'no'
                 ];
                 $db['logs'][] = "Bot player '{$found_name}' joined the game.";
             }
@@ -1027,9 +1031,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 $revealed_roles = [];
                 if ($gravedigger_ans === 'yes') {
-                    foreach ($db['players'] as $p) {
-                        if (($p['status'] ?? '') === 'dead' || in_array($p['name'], $final_killed)) {
-                            $revealed_roles[$p['name']] = $p['role'] ?? 'Citizen';
+                    foreach ($db["players"] as &$p) {
+                        if (($p["status"] ?? "") === "dead" || in_array($p["name"], $final_killed)) {
+                            $revealed_roles[$p["name"]] = $p["role"] ?? "Citizen";
+                            $p["revealed"] = "yes";
                         }
                     }
                     $db['grave_keeper_revealed_roles'] = true;
@@ -1056,54 +1061,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $next_night_key = "night{$next_night_num}";
                 $assigned = $db['assigned_night_roles'] ?? ['Mafia', 'Mafia Doctor', 'Deceiver', 'Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Suicidal Bomb'];
 
-                // Check if roles have ever been revealed by Gravedigger up to now
-                $roles_ever_revealed = false;
-                for ($d = 1; $d <= $cur_day; $d++) {
-                    if (($db["day{$d}"]['gravedigger_decision'] ?? 'no') === 'yes' || ($db["night{$d}"]['gravedigger_decision'] ?? 'no') === 'yes') {
-                        $roles_ever_revealed = true;
-                        break;
-                    }
-                }
-                if (!empty($db['grave_keeper_revealed_roles'])) {
-                    $roles_ever_revealed = true;
-                }
-
                 $next_calls = [];
-                if (!$roles_ever_revealed) {
-                    // Gravedigger has NOT revealed dead roles yet:
-                    // Call ALL assigned special roles so secrecy is preserved.
-                    foreach ($assigned as $r) {
-                        if ($r === 'Grave Keeper') {
-                            if (($db['grave_keeper_charges'] ?? 2) > 0) $next_calls[] = 'Grave Keeper';
-                        } else {
-                            $next_calls[] = $r;
-                        }
-                    }
-                } else {
-                    // Gravedigger HAS revealed dead roles:
-                    // Filter out dead roles from next night calling list.
-                    foreach ($assigned as $r) {
-                        if ($r === 'Grave Keeper') {
-                            if (($db['grave_keeper_charges'] ?? 2) > 0) $next_calls[] = 'Grave Keeper';
-                        } elseif ($r === 'Mafia') {
-                            $mafia_alive = false;
+                foreach ($assigned as $r) {
+                    if ($r === 'Grave Keeper') {
+                        if (($db['grave_keeper_charges'] ?? 2) > 0) {
+                            $gk_is_revealed = 'yes';
                             foreach ($db['players'] as $p) {
-                                if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']) && ($p['status'] ?? '') === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
-                                    $mafia_alive = true;
+                                if (($p['role'] ?? '') === 'Grave Keeper' && ($p['revealed'] ?? 'no') === 'no') {
+                                    $gk_is_revealed = 'no';
                                     break;
                                 }
                             }
-                            if ($mafia_alive) $next_calls[] = 'Mafia';
-                        } else {
-                            $holder_alive = false;
-                            foreach ($db['players'] as $p) {
-                                if (($p['role'] ?? '') === $r && ($p['status'] ?? '') === 'alive' && !in_array($p['name'], $db['delayed_departure'] ?? [])) {
-                                    $holder_alive = true;
-                                    break;
-                                }
-                            }
-                            if ($holder_alive) $next_calls[] = $r;
+                            if ($gk_is_revealed === 'no') $next_calls[] = 'Grave Keeper';
                         }
+                    } elseif ($r === 'Mafia') {
+                        $mafia_unrevealed = false;
+                        foreach ($db['players'] as $p) {
+                            if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']) && ($p['revealed'] ?? 'no') === 'no') {
+                                $mafia_unrevealed = true;
+                                break;
+                            }
+                        }
+                        if ($mafia_unrevealed) $next_calls[] = 'Mafia';
+                    } else {
+                        $holder_unrevealed = false;
+                        foreach ($db['players'] as $p) {
+                            if (($p['role'] ?? '') === $r && ($p['revealed'] ?? 'no') === 'no') {
+                                $holder_unrevealed = true;
+                                break;
+                            }
+                        }
+                        if ($holder_unrevealed) $next_calls[] = $r;
                     }
                 }
 
@@ -1138,49 +1126,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 if (!isset($db[$next_night_key]['call']) || !is_array($db[$next_night_key]['call'])) {
                     $assigned = $db['assigned_night_roles'] ?? ['Mafia', 'Mafia Doctor', 'Deceiver', 'Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Suicidal Bomb'];
-                    $roles_ever_revealed = false;
-                    for ($d = 1; $d <= $prev_day; $d++) {
-                        if (($db["day{$d}"]['gravedigger_decision'] ?? 'no') === 'yes' || ($db["night{$d}"]['gravedigger_decision'] ?? 'no') === 'yes') {
-                            $roles_ever_revealed = true;
-                            break;
-                        }
-                    }
-                    if (!empty($db['grave_keeper_revealed_roles'])) {
-                        $roles_ever_revealed = true;
-                    }
-
+                    
                     $next_calls = [];
-                    if (!$roles_ever_revealed) {
-                        foreach ($assigned as $r) {
-                            if ($r === 'Grave Keeper') {
-                                if (($db['grave_keeper_charges'] ?? 2) > 0) $next_calls[] = 'Grave Keeper';
-                            } else {
-                                $next_calls[] = $r;
-                            }
-                        }
-                    } else {
-                        foreach ($assigned as $r) {
-                            if ($r === 'Grave Keeper') {
-                                if (($db['grave_keeper_charges'] ?? 2) > 0) $next_calls[] = 'Grave Keeper';
-                            } elseif ($r === 'Mafia') {
-                                $mafia_alive = false;
+                    foreach ($assigned as $r) {
+                        if ($r === 'Grave Keeper') {
+                            if (($db['grave_keeper_charges'] ?? 2) > 0) {
+                                $gk_is_revealed = 'yes';
                                 foreach ($db['players'] as $p) {
-                                    if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']) && ($p['status'] ?? '') === 'alive') {
-                                        $mafia_alive = true;
+                                    if (($p['role'] ?? '') === 'Grave Keeper' && ($p['revealed'] ?? 'no') === 'no') {
+                                        $gk_is_revealed = 'no';
                                         break;
                                     }
                                 }
-                                if ($mafia_alive) $next_calls[] = 'Mafia';
-                            } else {
-                                $holder_alive = false;
-                                foreach ($db['players'] as $p) {
-                                    if (($p['role'] ?? '') === $r && ($p['status'] ?? '') === 'alive') {
-                                        $holder_alive = true;
-                                        break;
-                                    }
-                                }
-                                if ($holder_alive) $next_calls[] = $r;
+                                if ($gk_is_revealed === 'no') $next_calls[] = 'Grave Keeper';
                             }
+                        } elseif ($r === 'Mafia') {
+                            $mafia_unrevealed = false;
+                            foreach ($db['players'] as $p) {
+                                if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']) && ($p['revealed'] ?? 'no') === 'no') {
+                                    $mafia_unrevealed = true;
+                                    break;
+                                }
+                            }
+                            if ($mafia_unrevealed) $next_calls[] = 'Mafia';
+                        } else {
+                            $holder_unrevealed = false;
+                            foreach ($db['players'] as $p) {
+                                if (($p['role'] ?? '') === $r && ($p['revealed'] ?? 'no') === 'no') {
+                                    $holder_unrevealed = true;
+                                    break;
+                                }
+                            }
+                            if ($holder_unrevealed) $next_calls[] = $r;
                         }
                     }
                     $db[$next_night_key]['call'] = $next_calls;

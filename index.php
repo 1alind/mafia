@@ -578,7 +578,8 @@ hr {
                                         }
                                     }
                                     $gk_charges = $db['grave_keeper_charges'] ?? 2;
-                                    if (!$has_gk || $is_gk_dead || $gk_charges <= 0) return 'hidden';
+                                    if (!$has_gk || $gk_charges <= 0) return 'hidden';
+                                    if ($is_gk_dead) return 'dead';
                                     return 'active';
                                 }
 
@@ -595,7 +596,7 @@ hr {
                                     }
                                     if (!$mafia_active) return 'hidden';
                                     if ($mafia_alive) return 'active';
-                                    return $gk_revealed ? 'hidden' : 'dead';
+                                    return 'dead';
                                 }
 
                                 $role_holders = array_filter($db['players'], function($pl) use ($role) {
@@ -612,7 +613,7 @@ hr {
                                 }
                                 if ($is_alive) return 'active';
 
-                                return $gk_revealed ? 'hidden' : 'dead';
+                                return 'dead';
                             }
                         }
 
@@ -628,40 +629,32 @@ hr {
                                 $assigned = $db['assigned_night_roles'] ?? ['Mafia', 'Mafia Doctor', 'Deceiver', 'Police', 'Town Doctor', 'Investigator', 'Grave Keeper', 'Suicidal Bomb'];
                                 if (!in_array($role, $assigned)) return false;
 
-                                $roles_ever_revealed = false;
-                                for ($d = 1; $d <= $cur_day; $d++) {
-                                    if (($db["day{$d}"]['gravedigger_decision'] ?? 'no') === 'yes' || ($db["night{$d}"]['gravedigger_decision'] ?? 'no') === 'yes') {
-                                        $roles_ever_revealed = true;
-                                        break;
+                                if ($role === 'Grave Keeper') {
+                                    if (($db['grave_keeper_charges'] ?? 2) > 0) {
+                                        $gk_is_revealed = 'yes';
+                                        foreach ($db['players'] as $p) {
+                                            if (($p['role'] ?? '') === 'Grave Keeper' && ($p['revealed'] ?? 'no') === 'no') {
+                                                $gk_is_revealed = 'no';
+                                                break;
+                                            }
+                                        }
+                                        return $gk_is_revealed === 'no';
                                     }
-                                }
-                                if (!empty($db['grave_keeper_revealed_roles'])) {
-                                    $roles_ever_revealed = true;
-                                }
-
-                                if (!$roles_ever_revealed) {
-                                    if ($role === 'Grave Keeper') {
-                                        return ($db['grave_keeper_charges'] ?? 2) > 0;
+                                    return false;
+                                } elseif ($role === 'Mafia') {
+                                    foreach ($db['players'] as $p) {
+                                        if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']) && ($p['revealed'] ?? 'no') === 'no') {
+                                            return true;
+                                        }
                                     }
-                                    return true;
+                                    return false;
                                 } else {
-                                    if ($role === 'Grave Keeper') {
-                                        return ($db['grave_keeper_charges'] ?? 2) > 0;
-                                    } elseif ($role === 'Mafia') {
-                                        foreach ($db['players'] as $p) {
-                                            if (in_array($p['role'] ?? '', ['Mafia Boss', 'Mafia Doctor', 'Deceiver', 'Regular Mafia']) && ($p['status'] ?? '') === 'alive') {
-                                                return true;
-                                            }
+                                    foreach ($db['players'] as $p) {
+                                        if (($p['role'] ?? '') === $role && ($p['revealed'] ?? 'no') === 'no') {
+                                            return true;
                                         }
-                                        return false;
-                                    } else {
-                                        foreach ($db['players'] as $p) {
-                                            if (($p['role'] ?? '') === $role && ($p['status'] ?? '') === 'alive') {
-                                                return true;
-                                            }
-                                        }
-                                        return false;
                                     }
+                                    return false;
                                 }
                             }
                         }
@@ -732,7 +725,7 @@ hr {
                                     </p>
                                 </div>
 
-                                <?php if ($is_role_holder_dead && $role !== 'Grave Keeper'): ?>
+                                <?php if ($is_role_holder_dead): ?>
                                     <div class="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded border border-rose-900/60 text-center font-bold italic">
                                         🚫 <?php echo __('role_holder_eliminated'); ?>
                                     </div>
@@ -816,7 +809,7 @@ hr {
                                 </form>
                                 <?php endif; ?>
 
-                                <?php if ($role !== 'Grave Keeper' && !$is_role_holder_dead): ?>
+                                <?php if (!$is_role_holder_dead): ?>
                                     <?php 
                                     $cur_day_val = $db['day'] ?? 1;
                                     $cur_night_key_str = "night{$cur_day_val}";
@@ -1294,12 +1287,18 @@ hr {
 
                         <?php if (empty($db['winner'])): ?>
                             <?php if ($db['roles_shared'] ?? false): ?>
+                                <?php if (($db['phase'] ?? '') !== 'night'): ?>
                                 <form method="POST">
                                     <input type="hidden" name="action" value="next_phase">
                                     <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded font-bold text-xs uppercase tracking-wider shadow transition">
                                         <?php echo __('go_to_next_phase'); ?>
                                     </button>
                                 </form>
+                                <?php else: ?>
+                                <div class="bg-indigo-950/40 border border-indigo-900/60 p-3 rounded-lg text-center text-xs text-indigo-300 font-bold uppercase">
+                                    <?php echo get_current_lang() === 'ku' ? 'تکایە دوگمەیا د بەشێ کریارێن شەڤێ دا بکاربینە' : (get_current_lang() === 'ar' ? 'يرجى استخدام الزر في قسم إجراءات الليل' : 'Please use the button in Night Actions section'); ?>
+                                </div>
+                                <?php endif; ?>
                             <?php else: ?>
                                 <div class="bg-amber-950/40 border border-amber-900/60 p-3 rounded-lg text-center text-xs text-amber-300 font-bold uppercase">
                                     <?php echo __('unlock_phase_notice'); ?>
